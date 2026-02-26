@@ -5,14 +5,14 @@
 
   <parent>
     <groupId>ch.so.agi</groupId>
-    <artifactId>hop-geometry-type-plugin</artifactId>
+    <artifactId>hop-geometry-type-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>assemblies-hop-geometry-type</artifactId>
+  <artifactId>hop-geometry-type-plugin</artifactId>
   <packaging>pom</packaging>
-  <name>Assembly Apache Hop Geometry Type</name>
+  <name>Apache Hop Geometry Type Plugin Distribution</name>
 
   <dependencies>
     <dependency>

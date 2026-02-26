@@ -1,4 +1,4 @@
-# hop-geometry-type-plugin
+# hop-geometry-type
 
 Standalone Apache Hop plugin that contributes a **Geometry value type** (`ValueMetaGeometry`) for usage in custom Hop plugins/transforms without requiring the full `hop-gis-plugins` project.
 
@@ -13,7 +13,7 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 
 ```xml
 <groupId>ch.so.agi</groupId>
-<artifactId>hop-geometry-type-plugin</artifactId>
+<artifactId>hop-geometry-type-parent</artifactId>
 <version>0.1.0-SNAPSHOT</version>
 ```
 
@@ -26,7 +26,7 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 ```text
 .
 ├── hop-geometry-type/                          # core plugin jar with ValueMetaGeometry
-├── assemblies/assemblies-hop-geometry-type/   # builds installable Hop plugin ZIP
+├── assemblies/assemblies-hop-geometry-type/   # builds/installable Hop plugin ZIP artifact (hop-geometry-type-plugin)
 ├── scripts/dev-sync-hop-plugin.sh             # fast local sync into HOP_HOME
 └── .github/workflows/release.yml              # build+test and publish workflow
 ```
@@ -93,13 +93,18 @@ Deployment target is configured via `distributionManagement`:
 
 GitHub Actions workflow:
 - always runs build/tests on PRs and pushes (Linux / ubuntu-latest)
-- publishes on **every push** (all branches + tags)
+- publishes only on **push to `main`** (i.e. after merge)
 
 Required repository secrets:
 - `MAVEN_USERNAME`
 - `MAVEN_PASSWORD`
 
 No GPG signing is required.
+
+Published artifacts are now intentionally separated by role:
+- `hop-geometry-type-parent` (parent POM only)
+- `hop-geometry-type` (core JAR)
+- `hop-geometry-type-plugin` (plugin ZIP distribution)
 
 Maven deploy target selection is version-based:
 - `*-SNAPSHOT` versions are deployed to `sogeo-snapshots`
