@@ -1,4 +1,4 @@
-# hop-geometry-type
+# hop-geometry-type-plugin
 
 Standalone Apache Hop plugin that contributes a **Geometry value type** (`ValueMetaGeometry`) for usage in custom Hop plugins/transforms without requiring the full `hop-gis-plugins` project.
 
