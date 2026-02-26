@@ -93,7 +93,7 @@ Deployment target is configured via `distributionManagement`:
 
 GitHub Actions workflow:
 - always runs build/tests on PRs and pushes (Linux / ubuntu-latest)
-- publishes on **every push** (all branches + tags)
+- publishes only on **push to `main`** (i.e. after merge)
 
 Required repository secrets:
 - `MAVEN_USERNAME`
