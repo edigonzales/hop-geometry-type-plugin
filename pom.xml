@@ -42,11 +42,11 @@
   <distributionManagement>
     <repository>
       <id>sogeo-releases</id>
-      <url>https://jars.sogeo.services/repository/maven-releases/</url>
+      <url>https://jars.sogeo.services/releases/</url>
     </repository>
     <snapshotRepository>
       <id>sogeo-snapshots</id>
-      <url>https://jars.sogeo.services/repository/maven-snapshots/</url>
+      <url>https://jars.sogeo.services/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
 
