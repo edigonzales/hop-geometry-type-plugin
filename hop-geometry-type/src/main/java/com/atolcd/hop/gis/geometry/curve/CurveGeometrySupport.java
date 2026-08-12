@@ -4,15 +4,13 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
 
 /** Dispatches between standard JTS WKB and the curve-aware WKB codec. */
 public final class CurveGeometrySupport {
-  private static final int EWKB_FLAGS = 0xE0000000;
-  private static final int EWKB_TYPE_MASK = 0x1FFFFFFF;
-
   private CurveGeometrySupport() {}
 
   public static boolean isCurveGeometry(Geometry geometry) {
@@ -25,17 +23,16 @@ public final class CurveGeometrySupport {
     if (isCurveGeometry(geometry)) {
       return new CurveWkbWriter().write(geometry);
     }
-    return new WKBWriter().write(geometry);
+    boolean includeSrid = geometry.getSRID() != 0;
+    return new WKBWriter(2, ByteOrderValues.BIG_ENDIAN, includeSrid).write(geometry);
   }
 
   public static Geometry readWkb(byte[] wkb) throws ParseException {
     int rawType = readRawType(wkb);
-    int baseType = rawType & EWKB_TYPE_MASK;
+    int type = rawType & CurveWkbReader.EWKB_TYPE_MASK;
+    int baseType = type >= 1000 ? type % 1000 : type;
 
     if (isSupportedCurveType(baseType)) {
-      if ((rawType & EWKB_FLAGS) != 0) {
-        throw new ParseException("Curve EWKB with Z/M/SRID flags is not supported yet");
-      }
       try {
         return new CurveWkbReader().read(wkb);
       } catch (IllegalArgumentException e) {
@@ -70,11 +67,12 @@ public final class CurveGeometrySupport {
       throw new ParseException("WKB is too short");
     }
 
-    ByteOrder order = switch (wkb[0] & 0xff) {
-      case 0 -> ByteOrder.BIG_ENDIAN;
-      case 1 -> ByteOrder.LITTLE_ENDIAN;
-      default -> throw new ParseException("Invalid WKB byte order: " + (wkb[0] & 0xff));
-    };
+    ByteOrder order =
+        switch (wkb[0] & 0xff) {
+          case 0 -> ByteOrder.BIG_ENDIAN;
+          case 1 -> ByteOrder.LITTLE_ENDIAN;
+          default -> throw new ParseException("Invalid WKB byte order: " + (wkb[0] & 0xff));
+        };
 
     return ByteBuffer.wrap(wkb, 1, Integer.BYTES).order(order).getInt();
   }
