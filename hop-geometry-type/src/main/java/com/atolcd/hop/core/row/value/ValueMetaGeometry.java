@@ -441,7 +441,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
             return CurveGeometrySupport.readWkb(buffer);
 
           } catch (ParseException e) {
-            e.printStackTrace();
+            throw new HopFileException(toString() + " : Unable to parse geometry WKB", e);
           }
 
         case IValueMeta.STORAGE_TYPE_BINARY_STRING:
