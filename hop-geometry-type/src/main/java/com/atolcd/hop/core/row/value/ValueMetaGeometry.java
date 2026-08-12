@@ -22,6 +22,7 @@ package com.atolcd.hop.core.row.value;
  * #L%
  */
 
+import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import com.atolcd.hop.gis.utils.GeometryUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -99,7 +100,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
     if (geometry == null) return null;
 
     try {
-      Geometry cloneGeometry = new GeometryFactory().createGeometry(geometry);
+      Geometry cloneGeometry = CurveGeometrySupport.copy(geometry);
       cloneGeometry.setSRID(geometry.getSRID());
       return cloneGeometry;
     } catch (Exception e) {
@@ -437,7 +438,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
             byte[] buffer = new byte[size];
             inputStream.readFully(buffer);
 
-            return new WKBReader().read(buffer);
+            return CurveGeometrySupport.readWkb(buffer);
 
           } catch (ParseException e) {
             e.printStackTrace();
@@ -471,7 +472,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
       if (object != null) {
         switch (storageType) {
           case IValueMeta.STORAGE_TYPE_NORMAL:
-            byte[] binary = new WKBWriter().write((Geometry) object);
+            byte[] binary = CurveGeometrySupport.writeWkb((Geometry) object);
             outputStream.writeInt(binary.length);
             outputStream.write(binary);
 
