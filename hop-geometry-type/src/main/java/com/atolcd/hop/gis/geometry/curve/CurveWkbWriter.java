@@ -7,8 +7,9 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 
-/** Minimal 2D WKB/EWKB writer for LINESTRING and SQL/MM curve types 8, 9 and 10. */
+/** Minimal 2D WKB/EWKB writer for linear members and SQL/MM curve types 8 through 12. */
 public final class CurveWkbWriter {
   private final ByteOrder byteOrder;
 
@@ -30,12 +31,18 @@ public final class CurveWkbWriter {
     writeByteOrder(out);
     boolean writeSrid = includeSrid && geometry.getSRID() != 0;
     int type;
-    if (geometry instanceof CurvePolygon) {
+    if (geometry instanceof MultiSurface) {
+      type = CurveWkbReader.WKB_MULTISURFACE;
+    } else if (geometry instanceof MultiCurve) {
+      type = CurveWkbReader.WKB_MULTICURVE;
+    } else if (geometry instanceof CurvePolygon) {
       type = CurveWkbReader.WKB_CURVEPOLYGON;
     } else if (geometry instanceof CompoundCurve) {
       type = CurveWkbReader.WKB_COMPOUNDCURVE;
     } else if (geometry instanceof CircularString) {
       type = CurveWkbReader.WKB_CIRCULARSTRING;
+    } else if (geometry instanceof Polygon) {
+      type = CurveWkbReader.WKB_POLYGON;
     } else if (geometry instanceof LineString) {
       type = CurveWkbReader.WKB_LINESTRING;
     } else {
@@ -48,12 +55,18 @@ public final class CurveWkbWriter {
       writeInt(out, geometry.getSRID());
     }
 
-    if (geometry instanceof CurvePolygon polygon) {
+    if (geometry instanceof MultiSurface multiSurface) {
+      writeMultiSurface(out, multiSurface);
+    } else if (geometry instanceof MultiCurve multiCurve) {
+      writeMultiCurve(out, multiCurve);
+    } else if (geometry instanceof CurvePolygon polygon) {
       writeCurvePolygon(out, polygon);
     } else if (geometry instanceof CompoundCurve compoundCurve) {
       writeCompoundCurve(out, compoundCurve);
     } else if (geometry instanceof CircularString circularString) {
       writeCoordinates(out, circularString.getControlPoints());
+    } else if (geometry instanceof Polygon polygon) {
+      writePolygon(out, polygon);
     } else {
       writeCoordinates(out, ((LineString) geometry).getCoordinates());
     }
@@ -72,6 +85,35 @@ public final class CurveWkbWriter {
     writeInt(out, rings.size());
     for (LineString ring : rings) {
       writeGeometry(out, ring, false);
+    }
+  }
+
+  private void writeMultiCurve(ByteArrayOutputStream out, MultiCurve multiCurve) {
+    List<LineString> curves = multiCurve.getCurves();
+    writeInt(out, curves.size());
+    for (LineString curve : curves) {
+      writeGeometry(out, curve, false);
+    }
+  }
+
+  private void writeMultiSurface(ByteArrayOutputStream out, MultiSurface multiSurface) {
+    List<Polygon> surfaces = multiSurface.getSurfaces();
+    writeInt(out, surfaces.size());
+    for (Polygon surface : surfaces) {
+      writeGeometry(out, surface, false);
+    }
+  }
+
+  private void writePolygon(ByteArrayOutputStream out, Polygon polygon) {
+    if (polygon.isEmpty()) {
+      writeInt(out, 0);
+      return;
+    }
+
+    writeInt(out, polygon.getNumInteriorRing() + 1);
+    writeCoordinates(out, polygon.getExteriorRing().getCoordinates());
+    for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+      writeCoordinates(out, polygon.getInteriorRingN(i).getCoordinates());
     }
   }
 

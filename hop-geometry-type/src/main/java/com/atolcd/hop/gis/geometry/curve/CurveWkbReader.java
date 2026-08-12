@@ -7,14 +7,19 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 
-/** Minimal 2D WKB/EWKB reader for LINESTRING and SQL/MM curve types 8, 9 and 10. */
+/** Minimal 2D WKB/EWKB reader for linear members and SQL/MM curve types 8 through 12. */
 public final class CurveWkbReader {
   public static final int WKB_LINESTRING = 2;
+  public static final int WKB_POLYGON = 3;
   public static final int WKB_CIRCULARSTRING = 8;
   public static final int WKB_COMPOUNDCURVE = 9;
   public static final int WKB_CURVEPOLYGON = 10;
+  public static final int WKB_MULTICURVE = 11;
+  public static final int WKB_MULTISURFACE = 12;
 
   static final int EWKB_Z = 0x80000000;
   static final int EWKB_M = 0x40000000;
@@ -62,15 +67,32 @@ public final class CurveWkbReader {
     Geometry geometry =
         switch (type) {
           case WKB_LINESTRING -> factory.createLineString(readCoordinates(cursor, order));
+          case WKB_POLYGON -> readPolygon(cursor, order);
           case WKB_CIRCULARSTRING -> new CircularString(readCoordinates(cursor, order), factory);
           case WKB_COMPOUNDCURVE -> readCompoundCurve(cursor, order);
           case WKB_CURVEPOLYGON -> readCurvePolygon(cursor, order);
+          case WKB_MULTICURVE -> readMultiCurve(cursor, order);
+          case WKB_MULTISURFACE -> readMultiSurface(cursor, order);
           default -> throw new IllegalArgumentException("Unsupported WKB geometry type: " + type);
         };
     if (hasSrid) {
       geometry.setSRID(srid);
     }
     return geometry;
+  }
+
+  private Polygon readPolygon(Cursor cursor, ByteOrder order) {
+    int count = readCount(cursor, order, "POLYGON ring");
+    if (count == 0) {
+      return factory.createPolygon();
+    }
+
+    LinearRing shell = factory.createLinearRing(readCoordinates(cursor, order));
+    LinearRing[] holes = new LinearRing[count - 1];
+    for (int i = 0; i < holes.length; i++) {
+      holes[i] = factory.createLinearRing(readCoordinates(cursor, order));
+    }
+    return factory.createPolygon(shell, holes);
   }
 
   private CompoundCurve readCompoundCurve(Cursor cursor, ByteOrder order) {
@@ -100,6 +122,32 @@ public final class CurveWkbReader {
       rings.add(line);
     }
     return new CurvePolygon(rings, factory);
+  }
+
+  private MultiCurve readMultiCurve(Cursor cursor, ByteOrder order) {
+    int count = readCount(cursor, order, "MULTICURVE component");
+    List<LineString> curves = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      Geometry curve = readGeometry(cursor);
+      if (!(curve instanceof LineString line)) {
+        throw new IllegalArgumentException("MULTICURVE component must be a curve/line");
+      }
+      curves.add(line);
+    }
+    return new MultiCurve(curves, factory);
+  }
+
+  private MultiSurface readMultiSurface(Cursor cursor, ByteOrder order) {
+    int count = readCount(cursor, order, "MULTISURFACE component");
+    List<Polygon> surfaces = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      Geometry surface = readGeometry(cursor);
+      if (!(surface instanceof Polygon polygon)) {
+        throw new IllegalArgumentException("MULTISURFACE component must be a polygon/surface");
+      }
+      surfaces.add(polygon);
+    }
+    return new MultiSurface(surfaces, factory);
   }
 
   private Coordinate[] readCoordinates(Cursor cursor, ByteOrder order) {

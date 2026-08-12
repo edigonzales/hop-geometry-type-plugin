@@ -16,7 +16,9 @@ public final class CurveGeometrySupport {
   public static boolean isCurveGeometry(Geometry geometry) {
     return geometry instanceof CircularString
         || geometry instanceof CompoundCurve
-        || geometry instanceof CurvePolygon;
+        || geometry instanceof CurvePolygon
+        || geometry instanceof MultiCurve
+        || geometry instanceof MultiSurface;
   }
 
   public static byte[] writeWkb(Geometry geometry) {
@@ -59,7 +61,9 @@ public final class CurveGeometrySupport {
   private static boolean isSupportedCurveType(int type) {
     return type == CurveWkbReader.WKB_CIRCULARSTRING
         || type == CurveWkbReader.WKB_COMPOUNDCURVE
-        || type == CurveWkbReader.WKB_CURVEPOLYGON;
+        || type == CurveWkbReader.WKB_CURVEPOLYGON
+        || type == CurveWkbReader.WKB_MULTICURVE
+        || type == CurveWkbReader.WKB_MULTISURFACE;
   }
 
   private static int readRawType(byte[] wkb) throws ParseException {
