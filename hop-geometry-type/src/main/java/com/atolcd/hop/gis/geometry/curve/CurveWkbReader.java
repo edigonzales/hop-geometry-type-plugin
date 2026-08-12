@@ -32,6 +32,9 @@ public final class CurveWkbReader {
   }
 
   public Geometry read(byte[] wkb) {
+    if (wkb == null) {
+      throw new IllegalArgumentException("WKB must not be null");
+    }
     Cursor cursor = new Cursor(wkb);
     Geometry geometry = readGeometry(cursor);
     if (cursor.position != wkb.length) {
@@ -71,7 +74,7 @@ public final class CurveWkbReader {
   }
 
   private CompoundCurve readCompoundCurve(Cursor cursor, ByteOrder order) {
-    int count = cursor.readInt(order);
+    int count = readCount(cursor, order, "COMPOUNDCURVE component");
     List<LineString> components = new ArrayList<>(count);
     for (int i = 0; i < count; i++) {
       Geometry component = readGeometry(cursor);
@@ -84,7 +87,7 @@ public final class CurveWkbReader {
   }
 
   private CurvePolygon readCurvePolygon(Cursor cursor, ByteOrder order) {
-    int count = cursor.readInt(order);
+    int count = readCount(cursor, order, "CURVEPOLYGON ring");
     List<LineString> rings = new ArrayList<>(count);
     for (int i = 0; i < count; i++) {
       Geometry ring = readGeometry(cursor);
@@ -100,12 +103,20 @@ public final class CurveWkbReader {
   }
 
   private Coordinate[] readCoordinates(Cursor cursor, ByteOrder order) {
-    int count = cursor.readInt(order);
+    int count = readCount(cursor, order, "coordinate");
     Coordinate[] coordinates = new Coordinate[count];
     for (int i = 0; i < count; i++) {
       coordinates[i] = new Coordinate(cursor.readDouble(order), cursor.readDouble(order));
     }
     return coordinates;
+  }
+
+  private int readCount(Cursor cursor, ByteOrder order, String valueName) {
+    int count = cursor.readInt(order);
+    if (count < 0) {
+      throw new IllegalArgumentException("Negative " + valueName + " count in WKB: " + count);
+    }
+    return count;
   }
 
   private static final class Cursor {
