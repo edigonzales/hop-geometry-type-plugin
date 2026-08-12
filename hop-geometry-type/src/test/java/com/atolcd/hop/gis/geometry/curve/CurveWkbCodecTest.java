@@ -1,11 +1,15 @@
 package com.atolcd.hop.gis.geometry.curve;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 
 class CurveWkbCodecTest {
   private static final String CURVE_POLYGON_WKB =
@@ -59,5 +63,78 @@ class CurveWkbCodecTest {
     // Top-level type 10 and nested type 8 are preserved, rather than being silently stroked.
     assertThat(encoded[1]).isEqualTo((byte) CurveWkbReader.WKB_CURVEPOLYGON);
     assertThat(encoded[10]).isEqualTo((byte) CurveWkbReader.WKB_CIRCULARSTRING);
+  }
+
+  @Test
+  void roundTripsCurveSridAsEwkb() {
+    CurvePolygon polygon =
+        (CurvePolygon) new CurveWkbReader().read(HexFormat.of().parseHex(CURVE_POLYGON_WKB));
+    polygon.setSRID(2056);
+
+    byte[] encoded = new CurveWkbWriter().write(polygon);
+    Geometry decoded = new CurveWkbReader().read(encoded);
+
+    int rawType = ByteBuffer.wrap(encoded, 1, Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    assertThat(rawType & CurveWkbReader.EWKB_SRID).isNotZero();
+    assertThat(rawType & CurveWkbReader.EWKB_TYPE_MASK)
+        .isEqualTo(CurveWkbReader.WKB_CURVEPOLYGON);
+    assertThat(decoded).isInstanceOf(CurvePolygon.class);
+    assertThat(decoded.getSRID()).isEqualTo(2056);
+  }
+
+  @Test
+  void rejectsEwkbZCurveInsteadOfSilentlyDroppingZ() {
+    byte[] wkb = HexFormat.of().parseHex(CURVE_POLYGON_WKB);
+    ByteBuffer.wrap(wkb, 1, Integer.BYTES)
+        .order(ByteOrder.LITTLE_ENDIAN)
+        .putInt(CurveWkbReader.WKB_CURVEPOLYGON | CurveWkbReader.EWKB_Z);
+
+    assertThatThrownBy(() -> new CurveWkbReader().read(wkb))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Z/M");
+  }
+
+  @Test
+  void rejectsSqlMmZCurveInsteadOfDelegatingToLinearJts() {
+    byte[] wkb = HexFormat.of().parseHex(CURVE_POLYGON_WKB);
+    ByteBuffer.wrap(wkb, 1, Integer.BYTES)
+        .order(ByteOrder.LITTLE_ENDIAN)
+        .putInt(1000 + CurveWkbReader.WKB_CURVEPOLYGON);
+
+    assertThatThrownBy(() -> CurveGeometrySupport.readWkb(wkb))
+        .isInstanceOf(org.locationtech.jts.io.ParseException.class)
+        .hasMessageContaining("Z/M");
+  }
+
+  @Test
+  void rejectsWritingCurveCoordinatesWithZ() {
+    CircularString circularString =
+        new CircularString(
+            new Coordinate[] {
+              new Coordinate(0, 0, 1), new Coordinate(1, 1, 1), new Coordinate(2, 0, 1)
+            },
+            new GeometryFactory());
+
+    assertThatThrownBy(() -> new CurveWkbWriter().write(circularString))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Z/M");
+  }
+
+  @Test
+  void linearizesClosedThreePointCircularStringAsFullCircle() {
+    CircularString circle =
+        new CircularString(
+            new Coordinate[] {
+              new Coordinate(0, 0), new Coordinate(2, 0), new Coordinate(0, 0)
+            },
+            new GeometryFactory());
+
+    assertThat(circle.isClosed()).isTrue();
+    assertThat(circle.getNumPoints()).isGreaterThan(3);
+    assertThat(circle.getEnvelopeInternal().getMinY()).isLessThan(-0.99);
+    assertThat(circle.getEnvelopeInternal().getMaxY()).isGreaterThan(0.99);
+    Coordinate halfway = circle.getCoordinateN(circle.getNumPoints() / 2);
+    assertThat(halfway.x).isEqualTo(2.0);
+    assertThat(halfway.y).isEqualTo(0.0);
   }
 }
