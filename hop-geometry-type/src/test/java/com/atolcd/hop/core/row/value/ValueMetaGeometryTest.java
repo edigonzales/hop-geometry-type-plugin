@@ -3,13 +3,14 @@ package com.atolcd.hop.core.row.value;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.atolcd.hop.gis.geometry.curve.CircularString;
+import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
+import com.atolcd.hop.gis.geometry.curve.CurveWkbReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import org.apache.hop.core.exception.HopEofException;
-import org.apache.hop.core.exception.HopFileException;
-import org.apache.hop.core.exception.HopPluginException;
+import java.util.HexFormat;
 import org.apache.hop.core.exception.HopValueException;
 import org.apache.hop.core.row.value.ValueMetaString;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,15 @@ import org.locationtech.jts.io.WKTReader;
 class ValueMetaGeometryTest {
 
   private static final WKTReader WKT_READER = new WKTReader();
+  private static final byte[] CURVE_POLYGON_WKB =
+      HexFormat.of()
+          .parseHex(
+              "010A00000001000000010800000005000000"
+                  + "00000000000000000000000000000000"
+                  + "00000000000010400000000000000000"
+                  + "00000000000010400000000000001040"
+                  + "00000000000000000000000000001040"
+                  + "00000000000000000000000000000000");
 
   @Test
   void shouldRenderEwktIncludingSrid() throws Exception {
@@ -34,7 +44,10 @@ class ValueMetaGeometryTest {
   @Test
   void shouldConvertEwktToGeometry() throws Exception {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
-    Geometry geometry = (Geometry) meta.convertData(new ValueMetaString("wkt"), "SRID=4326;LINESTRING(0 0,1 1)");
+    Geometry geometry =
+        (Geometry)
+            meta.convertData(
+                new ValueMetaString("wkt"), "SRID=4326;LINESTRING(0 0,1 1)");
 
     assertThat(geometry.getSRID()).isEqualTo(4326);
     assertThat(geometry.toText()).isEqualTo("LINESTRING (0 0, 1 1)");
@@ -54,6 +67,19 @@ class ValueMetaGeometryTest {
   }
 
   @Test
+  void shouldCloneCurveGeometryWithoutLosingCurveType() throws Exception {
+    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
+    CurvePolygon original = curvePolygon();
+    original.setSRID(2056);
+
+    Geometry cloned = (Geometry) meta.cloneValueData(original);
+
+    assertThat(cloned).isInstanceOf(CurvePolygon.class).isNotSameAs(original);
+    assertThat(cloned.getSRID()).isEqualTo(2056);
+    assertCircularRingControlPoints((CurvePolygon) cloned);
+  }
+
+  @Test
   void shouldRoundTripBinaryReadWrite() throws Exception {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
     Geometry geometry = WKT_READER.read("POLYGON((0 0,0 1,1 1,1 0,0 0))");
@@ -68,11 +94,47 @@ class ValueMetaGeometryTest {
   }
 
   @Test
+  void shouldRoundTripCurveBinaryWithoutStroking() throws Exception {
+    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
+    CurvePolygon geometry = curvePolygon();
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    meta.writeData(new DataOutputStream(baos), geometry);
+
+    Object read = meta.readData(new DataInputStream(new ByteArrayInputStream(baos.toByteArray())));
+
+    assertThat(read).isInstanceOf(CurvePolygon.class);
+    assertCircularRingControlPoints((CurvePolygon) read);
+  }
+
+  @Test
   void shouldRejectNumberConversion() {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
 
     assertThatThrownBy(() -> meta.getNumber("POINT(0 0)"))
         .isInstanceOf(HopValueException.class)
         .hasMessageContaining("can't be converted to a number");
+  }
+
+  private static CurvePolygon curvePolygon() {
+    return (CurvePolygon) new CurveWkbReader().read(CURVE_POLYGON_WKB);
+  }
+
+  private static void assertCircularRingControlPoints(CurvePolygon polygon) {
+    assertThat(polygon.getCurveRings()).hasSize(1);
+    assertThat(polygon.getCurveRings().get(0)).isInstanceOf(CircularString.class);
+
+    CircularString ring = (CircularString) polygon.getCurveRings().get(0);
+    assertThat(ring.getControlPoints()).hasSize(5);
+    assertThat(ring.getControlPoints()[0].x).isEqualTo(0.0);
+    assertThat(ring.getControlPoints()[0].y).isEqualTo(0.0);
+    assertThat(ring.getControlPoints()[1].x).isEqualTo(4.0);
+    assertThat(ring.getControlPoints()[1].y).isEqualTo(0.0);
+    assertThat(ring.getControlPoints()[2].x).isEqualTo(4.0);
+    assertThat(ring.getControlPoints()[2].y).isEqualTo(4.0);
+    assertThat(ring.getControlPoints()[3].x).isEqualTo(0.0);
+    assertThat(ring.getControlPoints()[3].y).isEqualTo(4.0);
+    assertThat(ring.getControlPoints()[4].x).isEqualTo(0.0);
+    assertThat(ring.getControlPoints()[4].y).isEqualTo(0.0);
   }
 }
