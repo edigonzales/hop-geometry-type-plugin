@@ -435,6 +435,9 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
           try {
 
             int size = inputStream.readInt();
+            if (size < 0) {
+              throw new HopFileException(toString() + " : Negative geometry WKB size: " + size);
+            }
             byte[] buffer = new byte[size];
             inputStream.readFully(buffer);
 
