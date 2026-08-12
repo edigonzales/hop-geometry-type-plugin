@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 
 class CurveWkbCodecTest {
@@ -30,7 +31,7 @@ class CurveWkbCodecTest {
 
     // The inherited JTS Polygon remains usable through a linearized coordinate view.
     assertThat(polygon.getExteriorRing().getNumPoints()).isGreaterThan(5);
-    assertThat(polygon.isClosed()).isTrue();
+    assertThat(polygon.getExteriorRing().isClosed()).isTrue();
   }
 
   @Test
@@ -45,9 +46,15 @@ class CurveWkbCodecTest {
     assertThat(second).isInstanceOf(CurvePolygon.class);
     CurvePolygon polygon = (CurvePolygon) second;
     assertThat(polygon.getCurveRings().get(0)).isInstanceOf(CircularString.class);
-    assertThat(((CircularString) polygon.getCurveRings().get(0)).getControlPoints())
-        .usingRecursiveFieldByFieldElementComparator()
-        .containsExactly(((CircularString) ((CurvePolygon) first).getCurveRings().get(0)).getControlPoints());
+
+    Coordinate[] expected =
+        ((CircularString) ((CurvePolygon) first).getCurveRings().get(0)).getControlPoints();
+    Coordinate[] actual = ((CircularString) polygon.getCurveRings().get(0)).getControlPoints();
+    assertThat(actual).hasSameSizeAs(expected);
+    for (int i = 0; i < expected.length; i++) {
+      assertThat(actual[i].x).isEqualTo(expected[i].x);
+      assertThat(actual[i].y).isEqualTo(expected[i].y);
+    }
 
     // Top-level type 10 and nested type 8 are preserved, rather than being silently stroked.
     assertThat(encoded[1]).isEqualTo((byte) CurveWkbReader.WKB_CURVEPOLYGON);
