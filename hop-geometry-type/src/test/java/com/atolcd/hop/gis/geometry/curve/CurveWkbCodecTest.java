@@ -119,4 +119,22 @@ class CurveWkbCodecTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Z/M");
   }
+
+  @Test
+  void linearizesClosedThreePointCircularStringAsFullCircle() {
+    CircularString circle =
+        new CircularString(
+            new Coordinate[] {
+              new Coordinate(0, 0), new Coordinate(2, 0), new Coordinate(0, 0)
+            },
+            new GeometryFactory());
+
+    assertThat(circle.isClosed()).isTrue();
+    assertThat(circle.getNumPoints()).isGreaterThan(3);
+    assertThat(circle.getEnvelopeInternal().getMinY()).isLessThan(-0.99);
+    assertThat(circle.getEnvelopeInternal().getMaxY()).isGreaterThan(0.99);
+    Coordinate halfway = circle.getCoordinateN(circle.getNumPoints() / 2);
+    assertThat(halfway.x).isEqualTo(2.0);
+    assertThat(halfway.y).isEqualTo(0.0);
+  }
 }
