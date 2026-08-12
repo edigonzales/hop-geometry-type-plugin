@@ -9,12 +9,17 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 
-/** Minimal 2D ISO WKB reader for LINESTRING and SQL/MM curve types 8, 9 and 10. */
+/** Minimal 2D WKB/EWKB reader for LINESTRING and SQL/MM curve types 8, 9 and 10. */
 public final class CurveWkbReader {
   public static final int WKB_LINESTRING = 2;
   public static final int WKB_CIRCULARSTRING = 8;
   public static final int WKB_COMPOUNDCURVE = 9;
   public static final int WKB_CURVEPOLYGON = 10;
+
+  static final int EWKB_Z = 0x80000000;
+  static final int EWKB_M = 0x40000000;
+  static final int EWKB_SRID = 0x20000000;
+  static final int EWKB_TYPE_MASK = 0x1FFFFFFF;
 
   private final GeometryFactory factory;
 
@@ -38,16 +43,31 @@ public final class CurveWkbReader {
   private Geometry readGeometry(Cursor cursor) {
     ByteOrder order = cursor.readOrder();
     int rawType = cursor.readInt(order);
-    if ((rawType & 0xE0000000) != 0 || rawType >= 1000) {
-      throw new IllegalArgumentException("PoC supports 2D ISO WKB without EWKB flags only");
+    boolean hasZ = (rawType & EWKB_Z) != 0;
+    boolean hasM = (rawType & EWKB_M) != 0;
+    boolean hasSrid = (rawType & EWKB_SRID) != 0;
+    int type = rawType & EWKB_TYPE_MASK;
+
+    if (hasZ || hasM) {
+      throw new IllegalArgumentException("Curve WKB with Z/M ordinates is not supported yet");
     }
-    return switch (rawType) {
-      case WKB_LINESTRING -> factory.createLineString(readCoordinates(cursor, order));
-      case WKB_CIRCULARSTRING -> new CircularString(readCoordinates(cursor, order), factory);
-      case WKB_COMPOUNDCURVE -> readCompoundCurve(cursor, order);
-      case WKB_CURVEPOLYGON -> readCurvePolygon(cursor, order);
-      default -> throw new IllegalArgumentException("Unsupported WKB geometry type: " + rawType);
-    };
+    if (type >= 1000) {
+      throw new IllegalArgumentException("SQL/MM curve WKB with Z/M ordinates is not supported yet");
+    }
+
+    int srid = hasSrid ? cursor.readInt(order) : 0;
+    Geometry geometry =
+        switch (type) {
+          case WKB_LINESTRING -> factory.createLineString(readCoordinates(cursor, order));
+          case WKB_CIRCULARSTRING -> new CircularString(readCoordinates(cursor, order), factory);
+          case WKB_COMPOUNDCURVE -> readCompoundCurve(cursor, order);
+          case WKB_CURVEPOLYGON -> readCurvePolygon(cursor, order);
+          default -> throw new IllegalArgumentException("Unsupported WKB geometry type: " + type);
+        };
+    if (hasSrid) {
+      geometry.setSRID(srid);
+    }
+    return geometry;
   }
 
   private CompoundCurve readCompoundCurve(Cursor cursor, ByteOrder order) {
