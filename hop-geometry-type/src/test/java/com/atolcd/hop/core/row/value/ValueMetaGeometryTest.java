@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.util.HexFormat;
+import org.apache.hop.core.exception.HopFileException;
 import org.apache.hop.core.exception.HopValueException;
 import org.apache.hop.core.row.value.ValueMetaString;
 import org.junit.jupiter.api.Test;
@@ -94,9 +95,26 @@ class ValueMetaGeometryTest {
   }
 
   @Test
+  void shouldPreserveSridInStandardGeometryBinaryRoundTrip() throws Exception {
+    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
+    Geometry geometry = WKT_READER.read("POINT(7 8)");
+    geometry.setSRID(2056);
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    meta.writeData(new DataOutputStream(baos), geometry);
+
+    Geometry read =
+        (Geometry) meta.readData(new DataInputStream(new ByteArrayInputStream(baos.toByteArray())));
+
+    assertThat(read.getSRID()).isEqualTo(2056);
+    assertThat(read.toText()).isEqualTo(geometry.toText());
+  }
+
+  @Test
   void shouldRoundTripCurveBinaryWithoutStroking() throws Exception {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
     CurvePolygon geometry = curvePolygon();
+    geometry.setSRID(2056);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     meta.writeData(new DataOutputStream(baos), geometry);
@@ -104,7 +122,23 @@ class ValueMetaGeometryTest {
     Object read = meta.readData(new DataInputStream(new ByteArrayInputStream(baos.toByteArray())));
 
     assertThat(read).isInstanceOf(CurvePolygon.class);
+    assertThat(((CurvePolygon) read).getSRID()).isEqualTo(2056);
     assertCircularRingControlPoints((CurvePolygon) read);
+  }
+
+  @Test
+  void shouldFailCleanlyOnMalformedWkbInsteadOfFallingThroughStorageCases() throws Exception {
+    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    DataOutputStream out = new DataOutputStream(baos);
+    out.writeBoolean(false);
+    out.writeInt(4);
+    out.write(new byte[] {1, 2, 3, 4});
+
+    assertThatThrownBy(
+            () -> meta.readData(new DataInputStream(new ByteArrayInputStream(baos.toByteArray()))))
+        .isInstanceOf(HopFileException.class)
+        .hasMessageContaining("Unable to parse geometry WKB");
   }
 
   @Test
