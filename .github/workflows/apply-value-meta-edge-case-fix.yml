@@ -24,14 +24,8 @@ jobs:
 
           path = Path('hop-geometry-type/src/main/java/com/atolcd/hop/core/row/value/ValueMetaGeometry.java')
           text = path.read_text()
-          old = '''          } catch (ParseException e) {
-            e.printStackTrace();
-          }
-'''
-          new = '''          } catch (ParseException e) {
-            throw new HopFileException(toString() + " : Unable to parse geometry WKB", e);
-          }
-'''
+          old = "          } catch (ParseException e) {\n            e.printStackTrace();\n          }\n"
+          new = "          } catch (ParseException e) {\n            throw new HopFileException(toString() + \" : Unable to parse geometry WKB\", e);\n          }\n"
           count = text.count(old)
           if count != 1:
               raise SystemExit(f'Expected exactly one parse catch block, found {count}')
