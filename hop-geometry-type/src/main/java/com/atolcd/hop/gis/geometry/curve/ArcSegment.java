@@ -35,6 +35,11 @@ public final class ArcSegment implements CurveSegment {
   @Override
   public Coordinate[] linearize(double maxError) {
     double tolerance = maxError > 0 ? maxError : DEFAULT_MAX_ERROR;
+
+    if (start.equals2D(end) && !start.equals2D(mid)) {
+      return linearizeFullCircle(tolerance);
+    }
+
     Circle circle = circleThrough(start, mid, end);
     if (circle == null) {
       return new Coordinate[] {getStartPoint(), getMidPoint(), getEndPoint()};
@@ -44,16 +49,7 @@ public final class ArcSegment implements CurveSegment {
     double am = Math.atan2(mid.y - circle.cy, mid.x - circle.cx);
     double a1 = Math.atan2(end.y - circle.cy, end.x - circle.cx);
     double sweep = sweepThrough(a0, am, a1);
-    double maxStep;
-    if (tolerance >= circle.radius) {
-      maxStep = Math.PI / 2.0;
-    } else {
-      maxStep = 2.0 * Math.acos(1.0 - tolerance / circle.radius);
-    }
-    if (!Double.isFinite(maxStep) || maxStep <= 0.0) {
-      maxStep = Math.PI / 180.0;
-    }
-    int steps = Math.max(2, (int) Math.ceil(Math.abs(sweep) / maxStep));
+    int steps = stepsFor(circle.radius, Math.abs(sweep), tolerance, 2);
     List<Coordinate> coordinates = new ArrayList<>(steps + 1);
     for (int i = 0; i <= steps; i++) {
       double angle = a0 + sweep * i / steps;
@@ -65,6 +61,45 @@ public final class ArcSegment implements CurveSegment {
     coordinates.set(0, getStartPoint());
     coordinates.set(coordinates.size() - 1, getEndPoint());
     return coordinates.toArray(Coordinate[]::new);
+  }
+
+  private Coordinate[] linearizeFullCircle(double tolerance) {
+    double cx = (start.x + mid.x) / 2.0;
+    double cy = (start.y + mid.y) / 2.0;
+    double radius = Math.hypot(start.x - mid.x, start.y - mid.y) / 2.0;
+    if (radius < 1e-14) {
+      return new Coordinate[] {getStartPoint(), getMidPoint(), getEndPoint()};
+    }
+
+    double startAngle = Math.atan2(start.y - cy, start.x - cx);
+    int steps = stepsFor(radius, 2.0 * Math.PI, tolerance, 4);
+    if ((steps & 1) != 0) {
+      steps++;
+    }
+
+    Coordinate[] coordinates = new Coordinate[steps + 1];
+    for (int i = 0; i <= steps; i++) {
+      double angle = startAngle + 2.0 * Math.PI * i / steps;
+      coordinates[i] =
+          new Coordinate(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+    }
+    coordinates[0] = getStartPoint();
+    coordinates[steps / 2] = getMidPoint();
+    coordinates[steps] = getEndPoint();
+    return coordinates;
+  }
+
+  private static int stepsFor(double radius, double sweep, double tolerance, int minimum) {
+    double maxStep;
+    if (tolerance >= radius) {
+      maxStep = Math.PI / 2.0;
+    } else {
+      maxStep = 2.0 * Math.acos(1.0 - tolerance / radius);
+    }
+    if (!Double.isFinite(maxStep) || maxStep <= 0.0) {
+      maxStep = Math.PI / 180.0;
+    }
+    return Math.max(minimum, (int) Math.ceil(sweep / maxStep));
   }
 
   private static double sweepThrough(double start, double mid, double end) {
