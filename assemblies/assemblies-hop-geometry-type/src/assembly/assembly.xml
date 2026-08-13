@@ -8,12 +8,28 @@
   <includeBaseDirectory>false</includeBaseDirectory>
 
   <dependencySets>
+    <!-- Keep only the Hop plugin jar in the plugin root. -->
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
-      <useTransitiveDependencies>true</useTransitiveDependencies>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
       <outputDirectory>plugins/misc/hop-geometry-type</outputDirectory>
       <scope>runtime</scope>
       <unpack>false</unpack>
+      <includes>
+        <include>ch.so.agi:hop-geometry-type</include>
+      </includes>
+    </dependencySet>
+
+    <!-- Hop automatically adds jars from a plugin's lib/ directory to its classloader. -->
+    <dependencySet>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>true</useTransitiveDependencies>
+      <outputDirectory>plugins/misc/hop-geometry-type/lib</outputDirectory>
+      <scope>runtime</scope>
+      <unpack>false</unpack>
+      <excludes>
+        <exclude>ch.so.agi:hop-geometry-type</exclude>
+      </excludes>
     </dependencySet>
   </dependencySets>
 </assembly>
