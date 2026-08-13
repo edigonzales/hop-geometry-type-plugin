@@ -69,7 +69,8 @@ import net.postgis.jdbc.geometry.binary.BinaryWriter;
 @ValueMetaPlugin(
     id = "" + ValueMetaGeometry.TYPE_GEOMETRY,
     name = "Geometry",
-    description = "A geometry GIS object")
+    description = "A geometry GIS object",
+    classLoaderGroup = "sogeo-geometry")
 public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterface {
 
   // Postgis
