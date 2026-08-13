@@ -6,6 +6,10 @@ on:
   push:
     branches: ["main"]
     tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -35,6 +39,13 @@ jobs:
             echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2
             exit 1
           fi
+
+      - name: Upload plugin ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: geometry-type-plugin-zip
+          if-no-files-found: error
+          path: assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip
 
   publish:
     needs: build
@@ -78,3 +89,54 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+
+  release:
+    name: Create GitHub plugin release
+    needs:
+      - build
+      - publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download plugin ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: geometry-type-plugin-zip
+          path: release-assets
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t zip_files < <(find release-assets -type f -name 'hop-geometry-type-plugin-*.zip' | sort)
+          if [[ ${#zip_files[@]} -ne 1 ]]; then
+            echo "Expected exactly one geometry type plugin ZIP, found ${#zip_files[@]}" >&2
+            find release-assets -type f -print || true
+            exit 1
+          fi
+
+          zip_name="$(basename "${zip_files[0]}")"
+          version="$(echo "$zip_name" | sed -E 's/^hop-geometry-type-plugin-([0-9A-Za-z.+_-]+)\.zip$/\1/')"
+          if [[ -z "$version" || "$version" == "$zip_name" ]]; then
+            echo "Could not resolve version from ZIP filename: $zip_name" >&2
+            exit 1
+          fi
+
+          safe_version="${version//+/-}"
+          timestamp="$(date -u +%Y%m%d-%H%M)"
+          short_sha="${GITHUB_SHA::7}"
+          echo "tag=auto-v${safe_version}-${timestamp}-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "name=Auto Release ${version} (${timestamp} UTC)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.meta.outputs.name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: release-assets/*.zip
