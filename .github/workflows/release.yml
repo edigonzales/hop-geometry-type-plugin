@@ -20,6 +20,22 @@ jobs:
       - name: Build and test
         run: mvn -B -ntp clean verify
 
+      - name: Verify plugin runtime layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-0.1.0-SNAPSHOT.zip"
+          test -f "$ZIP"
+          unzip -l "$ZIP" > /tmp/geometry-type-zip.txt
+
+          grep -E 'plugins/misc/hop-geometry-type/hop-geometry-type-[^/]+\.jar$' /tmp/geometry-type-zip.txt
+          grep -E 'plugins/misc/hop-geometry-type/lib/jts-core-[^/]+\.jar$' /tmp/geometry-type-zip.txt
+
+          if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
+            echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2
+            exit 1
+          fi
+
   publish:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
