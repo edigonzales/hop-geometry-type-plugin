@@ -22,6 +22,43 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 - Apache Hop: **2.17** (Plugin ist dafür kompatibel)
 - CI build: Linux (ubuntu-latest)
 
+## Geometry and PostGIS integration
+
+`ValueMetaGeometry` participates in Apache Hop's normal JDBC value-type discovery. A native PostGIS `geometry` result column (`Types.OTHER`, type name `geometry`) is therefore exposed by standard Hop database transforms as a Hop **Geometry** field; no dedicated PostGIS reader transform is required.
+
+Typical read path:
+
+```text
+Table Input -> PostgreSQL JDBC -> ValueMetaGeometry -> Hop Geometry
+```
+
+Select the native geometry column, for example:
+
+```sql
+SELECT id, geom
+FROM my_schema.my_table;
+```
+
+Avoid `ST_AsText(geom)` or `ST_AsEWKB(geom)` when the downstream pipeline should receive a Geometry value; those expressions intentionally change the JDBC result type to string/binary.
+
+For PostgreSQL/PostGIS, the shared geometry runtime decodes the native hex EWKB representation itself and binds writes as EWKT with `Types.OTHER`. This preserves supported SQL/MM true-curve types without routing them through the ordinary JTS WKT writer:
+
+- `CIRCULARSTRING`
+- `COMPOUNDCURVE`
+- `CURVEPOLYGON`
+- `MULTICURVE`
+- `MULTISURFACE`
+
+The PostgreSQL JDBC driver belongs to Hop's PostgreSQL database plugin and is **not** packaged in `hop-geometry-type`. Likewise, `postgis-jdbc` is not part of the shared `sogeo-geometry` runtime.
+
+This means standard database transforms can be used in both directions:
+
+```text
+PostGIS -> Table Input -> Geometry-aware transforms -> Table Output -> PostGIS
+```
+
+CI verifies the actual Hop `Database` read/write path against a real PostGIS service, including geometry type detection, SRID 2056, and true-curve read/write/read round trips.
+
 ## Repository layout
 ```text
 .
@@ -35,6 +72,17 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 ### Full build (jar + tests + plugin zip)
 ```bash
 mvn clean verify
+```
+
+The PostGIS integration test is enabled in CI with `POSTGIS_TEST_ENABLED=true`. For local execution, start a PostGIS instance and provide the optional connection variables:
+
+```text
+POSTGIS_TEST_ENABLED=true
+POSTGIS_TEST_HOST=localhost
+POSTGIS_TEST_PORT=5432
+POSTGIS_TEST_DATABASE=hop
+POSTGIS_TEST_USER=hop
+POSTGIS_TEST_PASSWORD=hop
 ```
 
 ### Build without tests
