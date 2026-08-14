@@ -9,7 +9,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
 
-/** Dispatches between standard JTS WKB and the curve-aware WKB codec. */
+/** Dispatches between standard JTS codecs and the curve-aware SQL/MM codecs. */
 public final class CurveGeometrySupport {
   private CurveGeometrySupport() {}
 
@@ -19,6 +19,14 @@ public final class CurveGeometrySupport {
         || geometry instanceof CurvePolygon
         || geometry instanceof MultiCurve
         || geometry instanceof MultiSurface;
+  }
+
+  public static String writeWkt(Geometry geometry) {
+    if (!isCurveGeometry(geometry)) {
+      throw new IllegalArgumentException(
+          "Not a supported curve geometry: " + geometry.getClass().getName());
+    }
+    return new CurveWktWriter().write(geometry);
   }
 
   public static byte[] writeWkb(Geometry geometry) {
