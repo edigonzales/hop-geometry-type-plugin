@@ -23,6 +23,7 @@ package com.atolcd.hop.core.row.value;
  */
 
 import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
+import com.atolcd.hop.gis.geometry.postgis.PostgisGeometrySupport;
 import com.atolcd.hop.gis.utils.GeometryUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -61,10 +62,6 @@ import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
-import net.postgis.jdbc.PGgeometryLW;
-import net.postgis.jdbc.geometry.GeometryBuilder;
-import net.postgis.jdbc.geometry.binary.BinaryParser;
-import net.postgis.jdbc.geometry.binary.BinaryWriter;
 
 @ValueMetaPlugin(
     id = "" + ValueMetaGeometry.TYPE_GEOMETRY,
@@ -72,11 +69,6 @@ import net.postgis.jdbc.geometry.binary.BinaryWriter;
     description = "A geometry GIS object",
     classLoaderGroup = "sogeo-geometry")
 public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterface {
-
-  // Postgis
-  public static BinaryParser pgGeometryParser = new BinaryParser();
-  public static BinaryWriter pgGeometryWriter = new BinaryWriter();
-
 
   public static final int TYPE_GEOMETRY = 43663879; // Value is "GEOMETRY" on
 
@@ -612,14 +604,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
       // Postgis
       if (databaseInterface.isPostgresVariant()) {
 
-        String wkt = resultSet.getString(index + 1);
-        if (wkt != null) {
-          net.postgis.jdbc.geometry.Geometry pgGeometry = GeometryBuilder.geomFromString(resultSet.getString(index + 1));
-          String type = pgGeometry.getTypeString().trim();
-          String coords = pgGeometry.getValue().trim();
-          srid = pgGeometry.getSrid();
-          geometry = new WKTReader().read(type + coords);
-        }
+        geometry = PostgisGeometrySupport.read(resultSet.getString(index + 1));
 
         // Oracle Spatial/Locator
       } else if (databaseInterface.isOracleVariant()) {
@@ -662,7 +647,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
         }
       }
 
-      if (srid != null) {
+      if (srid != null && geometry != null) {
         geometry.setSRID(srid);
       }
 
@@ -759,24 +744,9 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
         Geometry geometry = getGeometry(data);
 
         if (geometry != null) {
-
-          String wkt = null;
-
-          if (GeometryUtils.getCoordinateDimension(geometry) == 3) {
-            wkt = new WKTWriter(3).write(geometry);
-          } else {
-            wkt = new WKTWriter(2).write(geometry);
-          }
-
-          if (geometry.getSRID() > 0) {
-            wkt = "SRID=" + geometry.getSRID() + ";" + wkt;
-          }
-
-          PGgeometryLW pgGeom = new PGgeometryLW(wkt);
-          preparedStatement.setObject(index, pgGeom, Types.OTHER);
-
+          preparedStatement.setObject(
+              index, PostgisGeometrySupport.write(geometry), Types.OTHER);
         } else {
-
           preparedStatement.setObject(index, null, Types.OTHER);
         }
 

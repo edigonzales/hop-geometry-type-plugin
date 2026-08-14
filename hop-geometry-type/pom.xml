@@ -38,21 +38,23 @@
       <version>${jts.version}</version>
     </dependency>
     <dependency>
-      <groupId>net.postgis</groupId>
-      <artifactId>postgis-jdbc</artifactId>
-      <version>2024.1.0</version>
-    </dependency>
-    <dependency>
-      <groupId>net.postgis</groupId>
-      <artifactId>postgis-geometry</artifactId>
-      <version>2024.1.0</version>
-    </dependency>
-    <dependency>
       <groupId>org.geolatte</groupId>
       <artifactId>geolatte-geom</artifactId>
       <version>1.9.1</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.hop</groupId>
+      <artifactId>hop-databases-postgresql</artifactId>
+      <version>${hop.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.7</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

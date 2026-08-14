@@ -14,6 +14,21 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: hop
+          POSTGRES_PASSWORD: hop
+          POSTGRES_DB: hop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hop -d hop"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,6 +38,13 @@ jobs:
           cache: maven
       - name: Build and test
         run: mvn -B -ntp clean verify
+        env:
+          POSTGIS_TEST_ENABLED: "true"
+          POSTGIS_TEST_HOST: localhost
+          POSTGIS_TEST_PORT: "5432"
+          POSTGIS_TEST_DATABASE: hop
+          POSTGIS_TEST_USER: hop
+          POSTGIS_TEST_PASSWORD: hop
 
       - name: Verify plugin runtime layout
         shell: bash
@@ -37,6 +59,16 @@ jobs:
 
           if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
             echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2
+            exit 1
+          fi
+
+          if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgresql-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
+            echo "PostgreSQL JDBC must be provided by Hop's PostgreSQL database plugin, not sogeo-geometry" >&2
+            exit 1
+          fi
+
+          if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgis-jdbc-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
+            echo "postgis-jdbc must not be packaged in the shared geometry runtime" >&2
             exit 1
           fi
 
