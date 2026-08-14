@@ -121,7 +121,9 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
             Geometry geometry = getGeometry(object);
 
-            if (GeometryUtils.getCoordinateDimension(geometry) == 3) {
+            if (CurveGeometrySupport.isCurveGeometry(geometry)) {
+              string = CurveGeometrySupport.writeWkt(geometry);
+            } else if (GeometryUtils.getCoordinateDimension(geometry) == 3) {
               string = new WKTWriter(3).write(geometry);
             } else {
               string = new WKTWriter(2).write(geometry);
