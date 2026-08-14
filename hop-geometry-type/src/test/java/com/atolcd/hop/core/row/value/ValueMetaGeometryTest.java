@@ -43,6 +43,19 @@ class ValueMetaGeometryTest {
   }
 
   @Test
+  void shouldRenderCurvePolygonEwktWithoutLinearizing() throws Exception {
+    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
+    CurvePolygon geometry = curvePolygon();
+    geometry.setSRID(2056);
+
+    String text = meta.getString(geometry);
+
+    assertThat(text)
+        .isEqualTo(
+            "SRID=2056;CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4, 0 4, 0 0))");
+  }
+
+  @Test
   void shouldConvertEwktToGeometry() throws Exception {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
     Geometry geometry =
