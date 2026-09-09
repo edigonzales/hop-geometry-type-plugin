@@ -14,7 +14,7 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 ```xml
 <groupId>ch.so.agi</groupId>
 <artifactId>hop-geometry-type-parent</artifactId>
-<version>0.1.0-SNAPSHOT</version>
+<version>0.2.0-SNAPSHOT</version>
 ```
 
 ## Compatibility
@@ -110,7 +110,7 @@ If you only need the Java API/type at compile/runtime:
 <dependency>
   <groupId>ch.so.agi</groupId>
   <artifactId>hop-geometry-type</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -163,3 +163,9 @@ Implementation originates from:
 - https://github.com/atolcd/hop-gis-plugins
 
 This project isolates the geometry type so downstream plugins can depend on it without pulling in all GIS transforms.
+
+## Z/M preservation (0.2.0-SNAPSHOT)
+
+Linear XY, XYZ, XYM and XYZM geometries retain coordinate sequences and SRIDs during cloning and Hop internal WKB serialization, including missing ordinates and empty geometries. The outer Hop stream framing is unchanged and old XY WKB remains readable. WKT output includes M where present. Existing curve codecs keep their previous dimensional scope; this does not add new dimensional capabilities to individual database adapters.
+
+Install this Geometry plugin build together with the updated hop-vector-raster-plugin. Keep a single JTS and Geometry plugin installation in the shared `sogeo-geometry` classloader group.

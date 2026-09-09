@@ -3,11 +3,7 @@ package com.atolcd.hop.gis.geometry.curve;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKBReader;
-import org.locationtech.jts.io.WKBWriter;
 
 /** Dispatches between standard JTS codecs and the curve-aware SQL/MM codecs. */
 public final class CurveGeometrySupport {
@@ -34,7 +30,7 @@ public final class CurveGeometrySupport {
       return new CurveWkbWriter().write(geometry);
     }
     boolean includeSrid = geometry.getSRID() != 0;
-    return new WKBWriter(2, ByteOrderValues.BIG_ENDIAN, includeSrid).write(geometry);
+    return LinearGeometryCodec.writeWkb(geometry);
   }
 
   public static Geometry readWkb(byte[] wkb) throws ParseException {
@@ -52,7 +48,7 @@ public final class CurveGeometrySupport {
       }
     }
 
-    return new WKBReader().read(wkb);
+    return LinearGeometryCodec.readWkb(wkb);
   }
 
   public static Geometry copy(Geometry geometry) {
@@ -60,7 +56,7 @@ public final class CurveGeometrySupport {
     if (isCurveGeometry(geometry)) {
       copy = new CurveWkbReader(geometry.getFactory()).read(new CurveWkbWriter().write(geometry));
     } else {
-      copy = new GeometryFactory().createGeometry(geometry);
+      copy = geometry.copy();
     }
     copy.setSRID(geometry.getSRID());
     return copy;

@@ -53,7 +53,6 @@ import org.apache.hop.core.row.value.ValueMetaPlugin;
 import org.apache.hop.core.variables.IVariables;
 import org.geolatte.geom.jts.JTS;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.InputStreamInStream;
 import org.locationtech.jts.io.OutputStreamOutStream;
@@ -115,10 +114,8 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
             if (CurveGeometrySupport.isCurveGeometry(geometry)) {
               string = CurveGeometrySupport.writeWkt(geometry);
-            } else if (GeometryUtils.getCoordinateDimension(geometry) == 3) {
-              string = new WKTWriter(3).write(geometry);
             } else {
-              string = new WKTWriter(2).write(geometry);
+              string = com.atolcd.hop.gis.geometry.curve.LinearGeometryCodec.writeWkt(geometry);
             }
 
             if (geometry.getSRID() > 0) {
@@ -611,7 +608,8 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
         throw new HopDatabaseException(
             toStringMeta()
-                + " : Oracle Spatial support is not available in this standalone build; use WKT extraction in SQL.");
+                + " : Oracle Spatial support is not available in this standalone build; use WKT"
+                + " extraction in SQL.");
 
         // MySQL
       } else if (databaseInterface.isMySqlVariant()) {
@@ -744,8 +742,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
         Geometry geometry = getGeometry(data);
 
         if (geometry != null) {
-          preparedStatement.setObject(
-              index, PostgisGeometrySupport.write(geometry), Types.OTHER);
+          preparedStatement.setObject(index, PostgisGeometrySupport.write(geometry), Types.OTHER);
         } else {
           preparedStatement.setObject(index, null, Types.OTHER);
         }
@@ -755,7 +752,8 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
         throw new HopDatabaseException(
             toStringMeta()
-                + " : Oracle Spatial support is not available in this standalone build; use SQL conversion to WKT/WKB.");
+                + " : Oracle Spatial support is not available in this standalone build; use SQL"
+                + " conversion to WKT/WKB.");
 
         // Mysql
       } else if (databaseMeta.getIDatabase().isMySqlVariant()) {
