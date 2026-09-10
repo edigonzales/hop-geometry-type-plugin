@@ -23,5 +23,5 @@ jobs:
       artifact-id: hop-geometry-type-plugin
       plugin-root: plugins/misc/hop-geometry-type
     secrets:
-      MAVEN_USERNAME: ${{ secrets.INTERLIS_MAVEN_USERNAME }}
-      MAVEN_PASSWORD: ${{ secrets.INTERLIS_MAVEN_TOKEN }}
+      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
