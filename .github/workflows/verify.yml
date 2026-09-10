@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  CI_REF: ec8951c511093f927ed9263f68e50c31e07f61b0
+  CI_REF: 3c90ffcc2ad051a5d678e39980230c7711d79742
   POM_FILE: assemblies/assemblies-hop-geometry-type/pom.xml
   ZIP_GLOB: assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip
   ARTIFACT_PREFIX: hop-geometry-type-plugin
