@@ -46,31 +46,11 @@ jobs:
           POSTGIS_TEST_USER: hop
           POSTGIS_TEST_PASSWORD: hop
 
+      - name: Test distribution checks
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Verify plugin runtime layout
-        shell: bash
-        run: |
-          set -euo pipefail
-          ZIP="assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-0.1.0-SNAPSHOT.zip"
-          test -f "$ZIP"
-          unzip -l "$ZIP" > /tmp/geometry-type-zip.txt
-
-          grep -E 'plugins/misc/hop-geometry-type/hop-geometry-type-[^/]+\.jar$' /tmp/geometry-type-zip.txt
-          grep -E 'plugins/misc/hop-geometry-type/lib/jts-core-[^/]+\.jar$' /tmp/geometry-type-zip.txt
-
-          if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
-            echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2
-            exit 1
-          fi
-
-          if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgresql-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
-            echo "PostgreSQL JDBC must be provided by Hop's PostgreSQL database plugin, not sogeo-geometry" >&2
-            exit 1
-          fi
-
-          if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgis-jdbc-[^/]+\.jar$' /tmp/geometry-type-zip.txt; then
-            echo "postgis-jdbc must not be packaged in the shared geometry runtime" >&2
-            exit 1
-          fi
+        run: bash scripts/check-distribution.sh
 
       - name: Upload plugin ZIP
         uses: actions/upload-artifact@v4
@@ -116,8 +96,8 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
 
-      - name: Publish to jars.sogeo.services
-        run: mvn -B -ntp -DskipTests deploy
+      - name: Publish to jars.interlis.guru
+        run: mvn -B -ntp deploy
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}

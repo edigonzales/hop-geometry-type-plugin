@@ -133,11 +133,11 @@ What the script does:
 
 This provides a short feedback loop when refining geometry-related plugin code.
 
-## Publishing to jars.sogeo.services
+## Publishing to jars.interlis.guru
 Deployment target is configured via `distributionManagement`:
 
-- Releases: `https://jars.sogeo.services/repository/maven-releases/`
-- Snapshots: `https://jars.sogeo.services/repository/maven-snapshots/`
+- Releases: `https://jars.interlis.guru/releases/`
+- Snapshots: `https://jars.interlis.guru/snapshots/`
 
 GitHub Actions workflow:
 - always runs build/tests on PRs and pushes (Linux / ubuntu-latest)
