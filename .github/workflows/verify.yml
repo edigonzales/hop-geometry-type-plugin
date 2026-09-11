@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  CI_REF: 052a98fcedb36cff4ea3fc9da24e60de26870ddc
+  CI_REF: 16f5518dc21ad5053ce4f137c6bdf97a5ebce5b7
   POM_FILE: assemblies/assemblies-hop-geometry-type/pom.xml
   ZIP_GLOB: assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip
   ARTIFACT_PREFIX: hop-geometry-type-plugin
@@ -94,6 +94,21 @@ jobs:
           test "$(printf '%s\n' "$zip_path" | wc -l)" -eq 1
           cp "$zip_path" .ci/verified/upload/
           cp .ci/verified/manifest.json .ci/verified/upload/hop-geometry-type-plugin-canonical.manifest.json
+
+      - name: Prepare shared Geometry Maven artifacts
+        run: |
+          set -euo pipefail
+          mapfile -t jars < <(find hop-geometry-type/target -maxdepth 1 -type f \
+            -name 'hop-geometry-type-*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort)
+          if [[ ${#jars[@]} -ne 1 ]]; then
+            echo "Expected exactly one shared Geometry JAR" >&2
+            printf '%s\n' "${jars[@]}" >&2
+            exit 1
+          fi
+          cp "${jars[0]}" .ci/verified/upload/hop-geometry-type.jar
+          cp hop-geometry-type/pom.xml .ci/verified/upload/hop-geometry-type.pom
+          cp pom.xml .ci/verified/upload/hop-geometry-type-parent.pom
 
       - name: Upload canonical ZIP and manifest
         uses: actions/upload-artifact@v4
