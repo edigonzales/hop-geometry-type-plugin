@@ -17,4 +17,15 @@ public final class MultiCurve extends MultiLineString {
   public List<LineString> getCurves() {
     return curves;
   }
+
+  @Override
+  protected MultiCurve copyInternal() {
+    return new MultiCurve(curves.stream().map(c -> (LineString) c.copy()).toList(), getFactory());
+  }
+
+  @Override
+  protected MultiCurve reverseInternal() {
+    return new MultiCurve(
+        curves.stream().map(c -> (LineString) c.reverse()).toList(), getFactory());
+  }
 }

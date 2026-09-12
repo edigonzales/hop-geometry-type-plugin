@@ -9,7 +9,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
 
-/** Minimal 2D WKB/EWKB writer for linear members and SQL/MM curve types 8 through 12. */
+/** WKB/EWKB writer for linear members and SQL/MM curve types 8 through 12. */
 public final class CurveWkbWriter {
   private final ByteOrder byteOrder;
 
@@ -30,6 +30,14 @@ public final class CurveWkbWriter {
   private void writeGeometry(ByteArrayOutputStream out, Geometry geometry, boolean includeSrid) {
     writeByteOrder(out);
     boolean writeSrid = includeSrid && geometry.getSRID() != 0;
+    boolean hasZ =
+        java.util.Arrays.stream(geometry.getCoordinates()).anyMatch(c -> !Double.isNaN(c.getZ()));
+    boolean hasM =
+        java.util.Arrays.stream(geometry.getCoordinates())
+            .anyMatch(
+                c ->
+                    c instanceof org.locationtech.jts.geom.CoordinateXYM
+                        || c instanceof org.locationtech.jts.geom.CoordinateXYZM);
     int type;
     if (geometry instanceof MultiSurface) {
       type = CurveWkbReader.WKB_MULTISURFACE;
@@ -50,6 +58,8 @@ public final class CurveWkbWriter {
           "Unsupported geometry for curve WKB: " + geometry.getGeometryType());
     }
 
+    if (hasZ) type |= CurveWkbReader.EWKB_Z;
+    if (hasM) type |= CurveWkbReader.EWKB_M;
     writeInt(out, writeSrid ? type | CurveWkbReader.EWKB_SRID : type);
     if (writeSrid) {
       writeInt(out, geometry.getSRID());
@@ -64,11 +74,11 @@ public final class CurveWkbWriter {
     } else if (geometry instanceof CompoundCurve compoundCurve) {
       writeCompoundCurve(out, compoundCurve);
     } else if (geometry instanceof CircularString circularString) {
-      writeCoordinates(out, circularString.getControlPoints());
+      writeCoordinates(out, circularString.getControlPoints(), hasZ, hasM);
     } else if (geometry instanceof Polygon polygon) {
-      writePolygon(out, polygon);
+      writePolygon(out, polygon, hasZ, hasM);
     } else {
-      writeCoordinates(out, ((LineString) geometry).getCoordinates());
+      writeCoordinates(out, ((LineString) geometry).getCoordinates(), hasZ, hasM);
     }
   }
 
@@ -104,27 +114,28 @@ public final class CurveWkbWriter {
     }
   }
 
-  private void writePolygon(ByteArrayOutputStream out, Polygon polygon) {
+  private void writePolygon(
+      ByteArrayOutputStream out, Polygon polygon, boolean hasZ, boolean hasM) {
     if (polygon.isEmpty()) {
       writeInt(out, 0);
       return;
     }
 
     writeInt(out, polygon.getNumInteriorRing() + 1);
-    writeCoordinates(out, polygon.getExteriorRing().getCoordinates());
+    writeCoordinates(out, polygon.getExteriorRing().getCoordinates(), hasZ, hasM);
     for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-      writeCoordinates(out, polygon.getInteriorRingN(i).getCoordinates());
+      writeCoordinates(out, polygon.getInteriorRingN(i).getCoordinates(), hasZ, hasM);
     }
   }
 
-  private void writeCoordinates(ByteArrayOutputStream out, Coordinate[] coordinates) {
+  private void writeCoordinates(
+      ByteArrayOutputStream out, Coordinate[] coordinates, boolean hasZ, boolean hasM) {
     writeInt(out, coordinates.length);
     for (Coordinate coordinate : coordinates) {
-      if (!Double.isNaN(coordinate.getZ()) || !Double.isNaN(coordinate.getM())) {
-        throw new IllegalArgumentException("Curve WKB with Z/M ordinates is not supported yet");
-      }
       writeDouble(out, coordinate.x);
       writeDouble(out, coordinate.y);
+      if (hasZ) writeDouble(out, coordinate.getZ());
+      if (hasM) writeDouble(out, coordinate.getM());
     }
   }
 

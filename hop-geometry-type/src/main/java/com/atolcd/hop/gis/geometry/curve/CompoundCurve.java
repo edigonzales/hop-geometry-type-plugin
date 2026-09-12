@@ -30,9 +30,23 @@ public final class CompoundCurve extends LineString {
         if (!coordinates.isEmpty() && i == 0) {
           continue;
         }
-        coordinates.add(new Coordinate(current[i]));
+        coordinates.add(current[i].copy());
       }
     }
     return coordinates.toArray(Coordinate[]::new);
+  }
+
+  @Override
+  protected CompoundCurve copyInternal() {
+    return new CompoundCurve(
+        components.stream().map(c -> (LineString) c.copy()).toList(), getFactory());
+  }
+
+  @Override
+  protected CompoundCurve reverseInternal() {
+    List<LineString> result = new ArrayList<>();
+    for (int i = components.size() - 1; i >= 0; i--)
+      result.add((LineString) components.get(i).reverse());
+    return new CompoundCurve(result, getFactory());
   }
 }

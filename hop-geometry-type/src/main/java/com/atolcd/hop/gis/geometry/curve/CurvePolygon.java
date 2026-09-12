@@ -2,8 +2,8 @@ package com.atolcd.hop.gis.geometry.curve;
 
 import java.util.List;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 
 /** SQL/MM CURVEPOLYGON represented as a JTS Polygon plus exact curve rings. */
@@ -35,5 +35,17 @@ public final class CurvePolygon extends Polygon {
       holes[i - 1] = factory.createLinearRing(rings.get(i).getCoordinates());
     }
     return holes;
+  }
+
+  @Override
+  protected CurvePolygon copyInternal() {
+    return new CurvePolygon(
+        curveRings.stream().map(c -> (LineString) c.copy()).toList(), getFactory());
+  }
+
+  @Override
+  protected CurvePolygon reverseInternal() {
+    return new CurvePolygon(
+        curveRings.stream().map(c -> (LineString) c.reverse()).toList(), getFactory());
   }
 }

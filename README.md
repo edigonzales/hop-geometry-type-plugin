@@ -18,8 +18,8 @@ The Maven coordinates are intentionally under `ch.so.agi` (Plugin-Version getren
 ```
 
 ## Compatibility
-- Java: **17**
-- Apache Hop: **2.17** (Plugin ist dafür kompatibel)
+- Java: **21** (compatibility tests also run on 25)
+- Apache Hop: **2.19.0**
 - CI build: Linux (ubuntu-latest)
 
 ## Geometry and PostGIS integration
@@ -166,6 +166,22 @@ This project isolates the geometry type so downstream plugins can depend on it w
 
 ## Z/M preservation (0.2.0-SNAPSHOT)
 
-Linear XY, XYZ, XYM and XYZM geometries retain coordinate sequences and SRIDs during cloning and Hop internal WKB serialization, including missing ordinates and empty geometries. The outer Hop stream framing is unchanged and old XY WKB remains readable. WKT output includes M where present. Existing curve codecs keep their previous dimensional scope; this does not add new dimensional capabilities to individual database adapters.
+Linear XY, XYZ, XYM and XYZM geometries retain coordinate sequences and SRIDs during cloning and Hop internal WKB serialization, including missing ordinates and empty geometries. The outer Hop stream framing is unchanged and old XY WKB remains readable. WKT output includes M where present. Circular WKB and WKT output now preserve XYZ/XYM/XYZM as well. Individual database adapters still define their own supported dimensions.
 
 Install this Geometry plugin build together with the updated hop-vector-raster-plugin. Keep a single JTS and Geometry plugin installation in the shared `sogeo-geometry` classloader group.
+
+## Explicit circular-curve linearization
+
+`CurveGeometrySupport.linearize(geometry, maxError)` recursively creates linear geometries from
+exact curve controls. `maxError` is a positive finite maximum XY chord deviation in source units.
+Subdivision preserves the original middle control point and interpolates Z/M on either side.
+Reversing a nondegenerate arc produces the same coordinates in reverse order. Curve `copy()` and
+`reverse()` preserve exact curve objects; full-circle reversal uses two unambiguous half arcs.
+
+Cross-row coverage coordination belongs to the Geoprocessing plugin's `coverage_linearize`
+operation. A row-local linearization cannot ensure shared chords when neighbours describe the
+same circle using different control-point subdivisions.
+
+The circular WKB codecs preserve XY/XYZ/XYM/XYZM using EWKB flags or SQL/MM type offsets.
+Curve WKT output includes dimension tags and ordinates. The existing WKT input parser remains
+linear-only; use Geometry objects or SQL/MM WKB for exact curved input.

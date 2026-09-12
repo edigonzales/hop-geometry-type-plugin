@@ -7,18 +7,18 @@ public final class StraightSegment implements CurveSegment {
   private final Coordinate end;
 
   public StraightSegment(Coordinate start, Coordinate end) {
-    this.start = new Coordinate(start);
-    this.end = new Coordinate(end);
+    this.start = start.copy();
+    this.end = end.copy();
   }
 
   @Override
   public Coordinate getStartPoint() {
-    return new Coordinate(start);
+    return start.copy();
   }
 
   @Override
   public Coordinate getEndPoint() {
-    return new Coordinate(end);
+    return end.copy();
   }
 
   @Override

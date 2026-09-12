@@ -1,7 +1,6 @@
 package com.atolcd.hop.gis.geometry.curve;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -74,59 +73,54 @@ class CurveWkbCodecTest {
     byte[] encoded = new CurveWkbWriter().write(polygon);
     Geometry decoded = new CurveWkbReader().read(encoded);
 
-    int rawType = ByteBuffer.wrap(encoded, 1, Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    int rawType =
+        ByteBuffer.wrap(encoded, 1, Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN).getInt();
     assertThat(rawType & CurveWkbReader.EWKB_SRID).isNotZero();
-    assertThat(rawType & CurveWkbReader.EWKB_TYPE_MASK)
-        .isEqualTo(CurveWkbReader.WKB_CURVEPOLYGON);
+    assertThat(rawType & CurveWkbReader.EWKB_TYPE_MASK).isEqualTo(CurveWkbReader.WKB_CURVEPOLYGON);
     assertThat(decoded).isInstanceOf(CurvePolygon.class);
     assertThat(decoded.getSRID()).isEqualTo(2056);
   }
 
   @Test
-  void rejectsEwkbZCurveInsteadOfSilentlyDroppingZ() {
-    byte[] wkb = HexFormat.of().parseHex(CURVE_POLYGON_WKB);
-    ByteBuffer.wrap(wkb, 1, Integer.BYTES)
-        .order(ByteOrder.LITTLE_ENDIAN)
-        .putInt(CurveWkbReader.WKB_CURVEPOLYGON | CurveWkbReader.EWKB_Z);
-
-    assertThatThrownBy(() -> new CurveWkbReader().read(wkb))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Z/M");
-  }
-
-  @Test
-  void rejectsSqlMmZCurveInsteadOfDelegatingToLinearJts() {
-    byte[] wkb = HexFormat.of().parseHex(CURVE_POLYGON_WKB);
-    ByteBuffer.wrap(wkb, 1, Integer.BYTES)
-        .order(ByteOrder.LITTLE_ENDIAN)
-        .putInt(1000 + CurveWkbReader.WKB_CURVEPOLYGON);
-
-    assertThatThrownBy(() -> CurveGeometrySupport.readWkb(wkb))
-        .isInstanceOf(org.locationtech.jts.io.ParseException.class)
-        .hasMessageContaining("Z/M");
-  }
-
-  @Test
-  void rejectsWritingCurveCoordinatesWithZ() {
-    CircularString circularString =
-        new CircularString(
-            new Coordinate[] {
-              new Coordinate(0, 0, 1), new Coordinate(1, 1, 1), new Coordinate(2, 0, 1)
-            },
-            new GeometryFactory());
-
-    assertThatThrownBy(() -> new CurveWkbWriter().write(circularString))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Z/M");
+  void roundTripsEwkbAndSqlMmDimensionsInBothByteOrders() throws Exception {
+    for (ByteOrder order : new ByteOrder[] {ByteOrder.LITTLE_ENDIAN, ByteOrder.BIG_ENDIAN})
+      for (int dimension = 1; dimension <= 3; dimension++) {
+        Coordinate[] points = new Coordinate[3];
+        double[][] xy = {{0, 0}, {1, 1}, {2, 0}};
+        for (int i = 0; i < 3; i++)
+          points[i] =
+              dimension == 1
+                  ? new Coordinate(xy[i][0], xy[i][1], i + 1)
+                  : dimension == 2
+                      ? new org.locationtech.jts.geom.CoordinateXYM(xy[i][0], xy[i][1], i + 10)
+                      : new org.locationtech.jts.geom.CoordinateXYZM(
+                          xy[i][0], xy[i][1], i + 1, i + 10);
+        var curve = new CircularString(points, new GeometryFactory());
+        String text = new CurveWktWriter().write(curve);
+        assertThat(text)
+            .startsWith(
+                "CIRCULARSTRING " + (dimension == 1 ? "Z" : dimension == 2 ? "M" : "ZM") + " (");
+        assertThat(text)
+            .contains(dimension == 1 ? "0 0 1" : dimension == 2 ? "0 0 10" : "0 0 1 10");
+        byte[] wkb = new CurveWkbWriter(order).write(curve);
+        for (boolean iso : new boolean[] {false, true}) {
+          if (iso) ByteBuffer.wrap(wkb, 1, 4).order(order).putInt(1000 * dimension + 8);
+          var decoded = (CircularString) CurveGeometrySupport.readWkb(wkb);
+          for (int i = 0; i < 3; i++) {
+            assertThat(Double.valueOf(decoded.getControlPoints()[i].getZ()))
+                .isEqualTo(Double.valueOf(points[i].getZ()));
+            assertThat(Double.valueOf(decoded.getControlPoints()[i].getM()))
+                .isEqualTo(Double.valueOf(points[i].getM()));
+          }
+        }
+      }
   }
 
   @Test
   void linearizesClosedThreePointCircularStringAsFullCircle() {
     CircularString circle =
         new CircularString(
-            new Coordinate[] {
-              new Coordinate(0, 0), new Coordinate(2, 0), new Coordinate(0, 0)
-            },
+            new Coordinate[] {new Coordinate(0, 0), new Coordinate(2, 0), new Coordinate(0, 0)},
             new GeometryFactory());
 
     assertThat(circle.isClosed()).isTrue();

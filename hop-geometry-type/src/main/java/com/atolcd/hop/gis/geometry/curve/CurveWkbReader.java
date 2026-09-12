@@ -7,11 +7,11 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 
-/** Minimal 2D WKB/EWKB reader for linear members and SQL/MM curve types 8 through 12. */
+/** WKB/EWKB reader for linear members and SQL/MM curve types 8 through 12. */
 public final class CurveWkbReader {
   public static final int WKB_LINESTRING = 2;
   public static final int WKB_POLYGON = 3;
@@ -56,19 +56,20 @@ public final class CurveWkbReader {
     boolean hasSrid = (rawType & EWKB_SRID) != 0;
     int type = rawType & EWKB_TYPE_MASK;
 
-    if (hasZ || hasM) {
-      throw new IllegalArgumentException("Curve WKB with Z/M ordinates is not supported yet");
-    }
-    if (type >= 1000) {
-      throw new IllegalArgumentException("SQL/MM curve WKB with Z/M ordinates is not supported yet");
-    }
+    int dimension = type / 1000;
+    if (dimension > 3) throw new IllegalArgumentException("Unsupported SQL/MM dimension");
+    hasZ |= dimension == 1 || dimension == 3;
+    hasM |= dimension == 2 || dimension == 3;
+    type %= 1000;
 
     int srid = hasSrid ? cursor.readInt(order) : 0;
     Geometry geometry =
         switch (type) {
-          case WKB_LINESTRING -> factory.createLineString(readCoordinates(cursor, order));
-          case WKB_POLYGON -> readPolygon(cursor, order);
-          case WKB_CIRCULARSTRING -> new CircularString(readCoordinates(cursor, order), factory);
+          case WKB_LINESTRING ->
+              factory.createLineString(readCoordinates(cursor, order, hasZ, hasM));
+          case WKB_POLYGON -> readPolygon(cursor, order, hasZ, hasM);
+          case WKB_CIRCULARSTRING ->
+              new CircularString(readCoordinates(cursor, order, hasZ, hasM), factory);
           case WKB_COMPOUNDCURVE -> readCompoundCurve(cursor, order);
           case WKB_CURVEPOLYGON -> readCurvePolygon(cursor, order);
           case WKB_MULTICURVE -> readMultiCurve(cursor, order);
@@ -81,16 +82,16 @@ public final class CurveWkbReader {
     return geometry;
   }
 
-  private Polygon readPolygon(Cursor cursor, ByteOrder order) {
+  private Polygon readPolygon(Cursor cursor, ByteOrder order, boolean hasZ, boolean hasM) {
     int count = readCount(cursor, order, "POLYGON ring");
     if (count == 0) {
       return factory.createPolygon();
     }
 
-    LinearRing shell = factory.createLinearRing(readCoordinates(cursor, order));
+    LinearRing shell = factory.createLinearRing(readCoordinates(cursor, order, hasZ, hasM));
     LinearRing[] holes = new LinearRing[count - 1];
     for (int i = 0; i < holes.length; i++) {
-      holes[i] = factory.createLinearRing(readCoordinates(cursor, order));
+      holes[i] = factory.createLinearRing(readCoordinates(cursor, order, hasZ, hasM));
     }
     return factory.createPolygon(shell, holes);
   }
@@ -150,11 +151,19 @@ public final class CurveWkbReader {
     return new MultiSurface(surfaces, factory);
   }
 
-  private Coordinate[] readCoordinates(Cursor cursor, ByteOrder order) {
+  private Coordinate[] readCoordinates(Cursor cursor, ByteOrder order, boolean hasZ, boolean hasM) {
     int count = readCount(cursor, order, "coordinate");
     Coordinate[] coordinates = new Coordinate[count];
     for (int i = 0; i < count; i++) {
-      coordinates[i] = new Coordinate(cursor.readDouble(order), cursor.readDouble(order));
+      double x = cursor.readDouble(order), y = cursor.readDouble(order);
+      double z = hasZ ? cursor.readDouble(order) : Double.NaN,
+          m = hasM ? cursor.readDouble(order) : Double.NaN;
+      coordinates[i] =
+          hasM
+              ? (hasZ
+                  ? new org.locationtech.jts.geom.CoordinateXYZM(x, y, z, m)
+                  : new org.locationtech.jts.geom.CoordinateXYM(x, y, m))
+              : new Coordinate(x, y, z);
     }
     return coordinates;
   }

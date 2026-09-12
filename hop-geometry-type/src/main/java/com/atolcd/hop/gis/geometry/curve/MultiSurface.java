@@ -17,4 +17,15 @@ public final class MultiSurface extends MultiPolygon {
   public List<Polygon> getSurfaces() {
     return surfaces;
   }
+
+  @Override
+  protected MultiSurface copyInternal() {
+    return new MultiSurface(surfaces.stream().map(c -> (Polygon) c.copy()).toList(), getFactory());
+  }
+
+  @Override
+  protected MultiSurface reverseInternal() {
+    return new MultiSurface(
+        surfaces.stream().map(c -> (Polygon) c.reverse()).toList(), getFactory());
+  }
 }

@@ -13,93 +13,97 @@ public final class ArcSegment implements CurveSegment {
   private final Coordinate end;
 
   public ArcSegment(Coordinate start, Coordinate mid, Coordinate end) {
-    this.start = new Coordinate(start);
-    this.mid = new Coordinate(mid);
-    this.end = new Coordinate(end);
+    this.start = start.copy();
+    this.mid = mid.copy();
+    this.end = end.copy();
   }
 
   @Override
   public Coordinate getStartPoint() {
-    return new Coordinate(start);
+    return start.copy();
   }
 
   public Coordinate getMidPoint() {
-    return new Coordinate(mid);
+    return mid.copy();
   }
 
   @Override
   public Coordinate getEndPoint() {
-    return new Coordinate(end);
+    return end.copy();
   }
 
   @Override
   public Coordinate[] linearize(double maxError) {
-    double tolerance = maxError > 0 ? maxError : DEFAULT_MAX_ERROR;
-
-    if (start.equals2D(end) && !start.equals2D(mid)) {
-      return linearizeFullCircle(tolerance);
+    if (!Double.isFinite(maxError) || maxError <= 0)
+      throw new IllegalArgumentException("Maximum deviation must be positive and finite");
+    // Identical reverse arcs use exactly the same floating point operations.
+    if (start.compareTo(end) > 0) {
+      Coordinate[] reversed = new ArcSegment(end, mid, start).linearize(maxError);
+      for (int i = 0, j = reversed.length - 1; i < j; i++, j--) {
+        Coordinate p = reversed[i];
+        reversed[i] = reversed[j];
+        reversed[j] = p;
+      }
+      return reversed;
     }
-
-    Circle circle = circleThrough(start, mid, end);
-    if (circle == null) {
+    boolean full = start.equals2D(end) && !start.equals2D(mid);
+    Circle circle =
+        full
+            ? new Circle((start.x + mid.x) / 2, (start.y + mid.y) / 2, start.distance(mid) / 2)
+            : circleThrough(start, mid, end);
+    if (circle == null || circle.radius == 0)
       return new Coordinate[] {getStartPoint(), getMidPoint(), getEndPoint()};
-    }
-
     double a0 = Math.atan2(start.y - circle.cy, start.x - circle.cx);
     double am = Math.atan2(mid.y - circle.cy, mid.x - circle.cx);
     double a1 = Math.atan2(end.y - circle.cy, end.x - circle.cx);
-    double sweep = sweepThrough(a0, am, a1);
-    int steps = stepsFor(circle.radius, Math.abs(sweep), tolerance, 2);
-    List<Coordinate> coordinates = new ArrayList<>(steps + 1);
-    for (int i = 0; i <= steps; i++) {
-      double angle = a0 + sweep * i / steps;
-      coordinates.add(
-          new Coordinate(
-              circle.cx + circle.radius * Math.cos(angle),
-              circle.cy + circle.radius * Math.sin(angle)));
-    }
-    coordinates.set(0, getStartPoint());
-    coordinates.set(coordinates.size() - 1, getEndPoint());
-    return coordinates.toArray(Coordinate[]::new);
+    double sweep = full ? 2 * Math.PI : sweepThrough(a0, am, a1);
+    double midSweep = full ? Math.PI : (sweep >= 0 ? positive(am - a0) : -positive(a0 - am));
+    List<Coordinate> values = new ArrayList<>();
+    append(values, circle, a0, midSweep, start, mid, maxError);
+    values.remove(values.size() - 1);
+    append(values, circle, a0 + midSweep, sweep - midSweep, mid, end, maxError);
+    return values.toArray(Coordinate[]::new);
   }
 
-  private Coordinate[] linearizeFullCircle(double tolerance) {
-    double cx = (start.x + mid.x) / 2.0;
-    double cy = (start.y + mid.y) / 2.0;
-    double radius = Math.hypot(start.x - mid.x, start.y - mid.y) / 2.0;
-    if (radius < 1e-14) {
-      return new Coordinate[] {getStartPoint(), getMidPoint(), getEndPoint()};
+  private static void append(
+      List<Coordinate> result,
+      Circle circle,
+      double angle,
+      double sweep,
+      Coordinate a,
+      Coordinate b,
+      double error) {
+    // asin form avoids cancellation when error/radius is small.
+    double step =
+        Math.min(Math.PI / 2, 4 * Math.asin(Math.sqrt(Math.min(1, error / (2 * circle.radius)))));
+    double required = Math.ceil(Math.abs(sweep) / step);
+    if (!Double.isFinite(required) || required > 1_000_000)
+      throw new IllegalArgumentException("Tolerance requires more than one million arc segments");
+    int n = Math.max(1, (int) required);
+    for (int i = 0; i <= n; i++) {
+      if (i == 0) {
+        result.add(a.copy());
+        continue;
+      }
+      if (i == n) {
+        result.add(b.copy());
+        continue;
+      }
+      double t = (double) i / n, theta = angle + sweep * t;
+      double z = interpolate(a.getZ(), b.getZ(), t), m = interpolate(a.getM(), b.getM(), t);
+      double x = circle.cx + circle.radius * Math.cos(theta),
+          y = circle.cy + circle.radius * Math.sin(theta);
+      result.add(
+          !Double.isNaN(m)
+              ? (Double.isNaN(z)
+                  ? new org.locationtech.jts.geom.CoordinateXYM(x, y, m)
+                  : new org.locationtech.jts.geom.CoordinateXYZM(x, y, z, m))
+              : new Coordinate(x, y, z));
     }
-
-    double startAngle = Math.atan2(start.y - cy, start.x - cx);
-    int steps = stepsFor(radius, 2.0 * Math.PI, tolerance, 4);
-    if ((steps & 1) != 0) {
-      steps++;
-    }
-
-    Coordinate[] coordinates = new Coordinate[steps + 1];
-    for (int i = 0; i <= steps; i++) {
-      double angle = startAngle + 2.0 * Math.PI * i / steps;
-      coordinates[i] =
-          new Coordinate(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
-    }
-    coordinates[0] = getStartPoint();
-    coordinates[steps / 2] = getMidPoint();
-    coordinates[steps] = getEndPoint();
-    return coordinates;
   }
 
-  private static int stepsFor(double radius, double sweep, double tolerance, int minimum) {
-    double maxStep;
-    if (tolerance >= radius) {
-      maxStep = Math.PI / 2.0;
-    } else {
-      maxStep = 2.0 * Math.acos(1.0 - tolerance / radius);
-    }
-    if (!Double.isFinite(maxStep) || maxStep <= 0.0) {
-      maxStep = Math.PI / 180.0;
-    }
-    return Math.max(minimum, (int) Math.ceil(sweep / maxStep));
+  private static double interpolate(double a, double b, double t) {
+    return Double.isNaN(a) || Double.isNaN(b) ? Double.NaN : a + (b - a) * t;
   }
 
   private static double sweepThrough(double start, double mid, double end) {
@@ -117,20 +121,12 @@ public final class ArcSegment implements CurveSegment {
   }
 
   private static Circle circleThrough(Coordinate a, Coordinate b, Coordinate c) {
-    double d =
-        2.0
-            * (a.x * (b.y - c.y)
-                + b.x * (c.y - a.y)
-                + c.x * (a.y - b.y));
-    if (Math.abs(d) < 1e-14) {
-      return null;
-    }
-    double a2 = a.x * a.x + a.y * a.y;
-    double b2 = b.x * b.x + b.y * b.y;
-    double c2 = c.x * c.x + c.y * c.y;
-    double cx = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
-    double cy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
-    return new Circle(cx, cy, Math.hypot(a.x - cx, a.y - cy));
+    double ux = b.x - a.x, uy = b.y - a.y, vx = c.x - a.x, vy = c.y - a.y;
+    double d = 2 * (ux * vy - uy * vx);
+    if (d == 0) return null;
+    double u2 = ux * ux + uy * uy, v2 = vx * vx + vy * vy;
+    double x = (u2 * vy - v2 * uy) / d, y = (v2 * ux - u2 * vx) / d;
+    return new Circle(a.x + x, a.y + y, Math.hypot(x, y));
   }
 
   private record Circle(double cx, double cy, double radius) {}
