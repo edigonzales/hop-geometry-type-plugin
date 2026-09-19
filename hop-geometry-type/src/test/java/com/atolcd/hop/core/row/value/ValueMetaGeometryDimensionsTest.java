@@ -7,6 +7,7 @@ import java.io.*;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.*;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.io.WKTReader;
 
 class ValueMetaGeometryDimensionsTest {
   @Test
@@ -49,6 +50,24 @@ class ValueMetaGeometryDimensionsTest {
   }
 
   @Test
+  void pointZRoundTripRetainsZAndSrid() throws Exception {
+    var geometry = new WKTReader().read("POINT Z (2600000 1200000 42)");
+    geometry.setSRID(2056);
+    var meta = new ValueMetaGeometry("g");
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+    meta.writeData(new DataOutputStream(bytes), geometry);
+
+    var loaded =
+        (Point)
+            meta.readData(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
+
+    assertThat(loaded.getSRID()).isEqualTo(2056);
+    assertThat(loaded.getCoordinateSequence().hasZ()).isTrue();
+    assertThat(loaded.getCoordinate().getZ()).isEqualTo(42.0);
+  }
+
+  @Test
   void emptyAndLegacyXyRemainReadable() throws Exception {
     var seq = PackedCoordinateSequenceFactory.DOUBLE_FACTORY.create(0, 4, 1);
     var g = new GeometryFactory(new PrecisionModel(), 2056).createPoint(seq);
@@ -59,5 +78,6 @@ class ValueMetaGeometryDimensionsTest {
         new org.locationtech.jts.io.WKBWriter(2)
             .write(new GeometryFactory().createPoint(new CoordinateXY(1, 2)));
     assertThat(CurveGeometrySupport.readWkb(old).getCoordinate().x).isEqualTo(1);
+    assertThat(CurveGeometrySupport.readWkb(old).getCoordinate().y).isEqualTo(2);
   }
 }
