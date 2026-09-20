@@ -16,8 +16,15 @@ class DistributionTest(unittest.TestCase):
         self.target = pathlib.Path(self.temp.name)
 
     def archive(self, version="0.2.0-SNAPSHOT", extra=(), omit=()):
-        entries = [ROOT + "hop-geometry-type-" + version + ".jar",
-                   ROOT + "lib/jts-core-1.20.0.jar"]
+        entries = [ROOT + "hop-geometry-type-" + version + ".jar"]
+        entries.extend(
+            ROOT + "lib/" + fragment + "fixture.jar"
+            for fragment in (
+                "jts-core-", "gt-main-", "gt-render-", "gt-wms-", "gt-wmts-",
+                "gt-epsg-hsql-", "gt-geotiff-", "imagen-core-", "imageio-ext-",
+                "indriya-", "unit-api-", "systems-common-",
+            )
+        )
         with zipfile.ZipFile(self.target / ("hop-geometry-type-plugin-" + version + ".zip"), "w") as archive:
             for entry in entries + list(extra):
                 if entry not in omit:
@@ -55,7 +62,8 @@ class DistributionTest(unittest.TestCase):
                 self.assertNotEqual(self.check().returncode, 0)
 
     def test_missing_required_runtime_jars(self):
-        for entry in ("hop-geometry-type-0.2.0-SNAPSHOT.jar", "lib/jts-core-1.20.0.jar"):
+        for entry in ("hop-geometry-type-0.2.0-SNAPSHOT.jar", "lib/jts-core-fixture.jar",
+                      "lib/gt-main-fixture.jar", "lib/imagen-core-fixture.jar"):
             with self.subTest(entry=entry):
                 self.archive(omit=[ROOT + entry])
                 self.assertNotEqual(self.check().returncode, 0)

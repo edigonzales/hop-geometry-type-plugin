@@ -14,7 +14,27 @@ trap 'rm -f "$LAYOUT_FILE"' EXIT
 unzip -l "$ZIP" > "$LAYOUT_FILE"
 
 grep -E 'plugins/misc/hop-geometry-type/hop-geometry-type-[^/]+\.jar$' "$LAYOUT_FILE"
-grep -E 'plugins/misc/hop-geometry-type/lib/jts-core-[^/]+\.jar$' "$LAYOUT_FILE"
+
+required_runtime=(
+  'jts-core-'
+  'gt-main-'
+  'gt-render-'
+  'gt-wms-'
+  'gt-wmts-'
+  'gt-epsg-hsql-'
+  'gt-geotiff-'
+  'imagen-core-'
+  'imageio-ext-'
+  'indriya-'
+  'unit-api-'
+  'systems-common-'
+)
+for fragment in "${required_runtime[@]}"; do
+  if ! grep -E "plugins/misc/hop-geometry-type/lib/${fragment}[^/]+\\.jar$" "$LAYOUT_FILE" >/dev/null; then
+    echo "Shared Geometry runtime is missing a JAR matching ${fragment}" >&2
+    exit 1
+  fi
+done
 
 if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' "$LAYOUT_FILE"; then
   echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2

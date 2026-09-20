@@ -103,6 +103,12 @@ The ZIP contains all runtime dependencies under:
 plugins/misc/hop-geometry-type/
 ```
 
+The installable ZIP is also the single owner of the shared `sogeo-geometry` runtime:
+GeoTools 35.1 (including WMTS, WMS, rendering, EPSG and GeoTIFF), Eclipse Imagen 0.9.2,
+ImageIO-Ext, Indriya/UOM and their support libraries. Geometry Inspector, Raster Type and
+Vector/Raster use this classloader and must not package their own copies. The PostgreSQL and
+PostGIS JDBC drivers remain owned by Hop's database plugin and are intentionally excluded.
+
 ## Use in your own plugin project
 If you only need the Java API/type at compile/runtime:
 
@@ -168,7 +174,9 @@ This project isolates the geometry type so downstream plugins can depend on it w
 
 Linear XY, XYZ, XYM and XYZM geometries retain coordinate sequences and SRIDs during cloning and Hop internal WKB serialization, including missing ordinates and empty geometries. The outer Hop stream framing is unchanged and old XY WKB remains readable. WKT output includes M where present. Circular WKB and WKT output now preserve XYZ/XYM/XYZM as well. Individual database adapters still define their own supported dimensions.
 
-Install this Geometry plugin build together with the updated hop-vector-raster-plugin. Keep a single JTS and Geometry plugin installation in the shared `sogeo-geometry` classloader group.
+Install this Geometry plugin build together with the updated Inspector, Raster Type and
+Vector/Raster plugins. Keep a single Geometry Type installation in the shared `sogeo-geometry`
+classloader group; it supplies JTS as well as the common GeoTools/Imagen runtime.
 
 ## Explicit circular-curve linearization
 
