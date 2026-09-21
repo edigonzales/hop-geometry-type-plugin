@@ -122,6 +122,16 @@ If you only need the Java API/type at compile/runtime:
 
 For Hop runtime installation, install the ZIP into your Hop home.
 
+When updating, stop Hop, replace the complete `plugins/misc/hop-geometry-type` directory
+with the contents of the new Geometry Type ZIP, then restart Hop GUI/server completely.
+The plugin supplies an ImageN service provider that explicitly allows the four GeoTools
+palette registry classes (`ColorReductionDescriptor`, `ColorInversionDescriptor`,
+`ColorReductionCRIF`, `ColorInversionCRIF`). ImageN caches this allowlist on first use;
+restarting a pipeline alone does not reload it. A `HopEnvironmentAfterInit` extension
+initializes ImageN with the shared plugin context classloader so its service provider is
+visible even when later GUI/pipeline threads use a different context loader. No additional
+JVM options are needed.
+
 ## Fast local development / live testing
 For rapid iteration against a local Hop installation:
 

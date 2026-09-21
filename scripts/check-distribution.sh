@@ -50,3 +50,28 @@ if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgis-jdbc-[^/]+\.jar$' "$LA
   echo "postgis-jdbc must not be packaged in the shared geometry runtime" >&2
   exit 1
 fi
+
+# Verify the SPI inside the shipped plugin JAR, not only in Maven's classes directory.
+python3 - "$ZIP" <<'PYTHON'
+import io
+import sys
+import zipfile
+
+provider = "com.atolcd.hop.gis.imagen.GeoToolsRegistryAllowListProvider"
+service = "META-INF/services/org.eclipse.imagen.spi.RegistryAllowListProvider"
+with zipfile.ZipFile(sys.argv[1]) as bundle:
+    candidates = [name for name in bundle.namelist()
+                  if name.startswith("plugins/misc/hop-geometry-type/hop-geometry-type-")
+                  and name.endswith(".jar") and name.count("/") == 3]
+    if len(candidates) != 1:
+        raise SystemExit("Expected exactly one Geometry Type plugin JAR")
+    with zipfile.ZipFile(io.BytesIO(bundle.read(candidates[0]))) as plugin:
+        if provider.replace(".", "/") + ".class" not in plugin.namelist():
+            raise SystemExit("Missing GeoTools ImageN allowlist provider class")
+        if service not in plugin.namelist():
+            raise SystemExit("Missing ImageN RegistryAllowListProvider service file")
+        providers = [line.split("#", 1)[0].strip()
+                     for line in plugin.read(service).decode("utf-8").splitlines()]
+        if provider not in providers:
+            raise SystemExit("Missing GeoTools ImageN allowlist service registration")
+PYTHON

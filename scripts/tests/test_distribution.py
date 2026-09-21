@@ -1,4 +1,5 @@
 """Regression checks for version-independent distribution verification."""
+import io
 import pathlib
 import subprocess
 import tempfile
@@ -15,7 +16,7 @@ class DistributionTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.target = pathlib.Path(self.temp.name)
 
-    def archive(self, version="0.2.0-SNAPSHOT", extra=(), omit=()):
+    def archive(self, version="0.2.0-SNAPSHOT", extra=(), omit=(), omit_spi=()):
         entries = [ROOT + "hop-geometry-type-" + version + ".jar"]
         entries.extend(
             ROOT + "lib/" + fragment + "fixture.jar"
@@ -28,11 +29,31 @@ class DistributionTest(unittest.TestCase):
         with zipfile.ZipFile(self.target / ("hop-geometry-type-plugin-" + version + ".zip"), "w") as archive:
             for entry in entries + list(extra):
                 if entry not in omit:
-                    archive.writestr(entry, b"fixture")
+                    content = b"fixture"
+                    if entry == entries[0]:
+                        jar = io.BytesIO()
+                        provider = "com.atolcd.hop.gis.imagen.GeoToolsRegistryAllowListProvider"
+                        with zipfile.ZipFile(jar, "w") as plugin:
+                            if "class" not in omit_spi:
+                                plugin.writestr(provider.replace(".", "/") + ".class", b"fixture")
+                            if "service" not in omit_spi:
+                                plugin.writestr(
+                                    "META-INF/services/org.eclipse.imagen.spi.RegistryAllowListProvider",
+                                    "" if "registration" in omit_spi else provider + "\n")
+                        content = jar.getvalue()
+                    archive.writestr(entry, content)
 
     def check(self):
         return subprocess.run(["bash", str(SCRIPT), str(self.target)],
                               text=True, capture_output=True)
+
+    def test_missing_imagen_provider_fails(self):
+        for missing in ("class", "service", "registration"):
+            with self.subTest(missing=missing):
+                self.archive(omit_spi=(missing,))
+                result = self.check()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Missing", result.stderr)
 
     def test_no_zip_has_actionable_error(self):
         result = self.check()
