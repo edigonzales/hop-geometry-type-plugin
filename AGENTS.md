@@ -7,6 +7,15 @@ Before changing pipelines or test setup, read the
 The documentation follows `main`; use the interfaces at this repo's actual
 workflow/helper revisions and preserve existing pins and `ci-ref` values.
 
+### Maven transport
+
+`.mvn/maven.config` selects Maven Wagon for every Maven invocation in this
+repository, including builds, tests and the pinned publication workflow's
+Python-spawned Maven processes. This works around the observed JAR upload failure:
+the initial unauthenticated request received HTTP 401, but no successful
+authenticated retry followed, while the POM upload retried successfully. Treat the
+workaround as confirmed only after a successful publication and download check.
+
 Run the commands below from this repository root in Bash, using Python 3, Maven
 and JDK 21 (`JAVA_HOME` and `PATH` pointing to that JDK). Compatibility jobs also
 use JDK 25. For headless Linux SWT tests, run Maven under `xvfb-run -a`.
