@@ -1,7 +1,11 @@
 package com.atolcd.hop.gis.geometry.curve;
 
+import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
+import com.atolcd.hop.gis.geometry.codec.GeometryReadLimits;
+import com.atolcd.hop.gis.geometry.codec.WkbWriteOptions;
 import java.util.EnumSet;
 import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.io.*;
 
 /** Shared linear codec retaining declared Z/M sequences, including missing ordinates. */
@@ -31,6 +35,22 @@ public final class LinearGeometryCodec {
     var writer = new WKBWriter(o.size(), ByteOrderValues.BIG_ENDIAN, geometry.getSRID() != 0);
     writer.setOutputOrdinates(o);
     return writer.write(geometry);
+  }
+
+  /** Explicit option path; delegates to the shared recursive writer. */
+  public static byte[] writeWkb(Geometry geometry, WkbWriteOptions options)
+      throws GeometryCodecException {
+    return new CurveWkbWriter(options).write(geometry, options);
+  }
+
+  /** Checked strict reader for callers that want the shared codec errors. */
+  public static Geometry readWkb(byte[] bytes, GeometryReadLimits limits)
+      throws GeometryCodecException {
+    return new CurveWkbReader(
+            new GeometryFactory(
+                new PrecisionModel(), 0, PackedCoordinateSequenceFactory.DOUBLE_FACTORY),
+            limits)
+        .readChecked(bytes);
   }
 
   public static Geometry readWkb(byte[] bytes) throws ParseException {

@@ -1,11 +1,14 @@
 package com.atolcd.hop.gis.geometry.postgis;
 
+import com.atolcd.hop.gis.geometry.codec.GeometryCodec;
+import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
+import com.atolcd.hop.gis.geometry.codec.GeometryReadLimits;
+import com.atolcd.hop.gis.geometry.codec.WktWriteOptions;
 import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import com.atolcd.hop.gis.utils.GeometryUtils;
 import java.util.HexFormat;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKTWriter;
 
 /** Curve-aware encoding and decoding for native PostGIS geometry JDBC values. */
 public final class PostgisGeometrySupport {
@@ -49,20 +52,13 @@ public final class PostgisGeometrySupport {
     if (geometry == null) {
       return null;
     }
-
-    String wkt;
-    if (CurveGeometrySupport.isCurveGeometry(geometry)) {
-      wkt = CurveGeometrySupport.writeWkt(geometry);
-    } else if (GeometryUtils.getCoordinateDimension(geometry) == 3) {
-      wkt = new WKTWriter(3).write(geometry);
-    } else {
-      wkt = new WKTWriter(2).write(geometry);
+    try {
+      return new GeometryCodec(GeometryReadLimits.defaults())
+          .writeText(geometry, WktWriteOptions.legacy());
+    } catch (GeometryCodecException e) {
+      throw new IllegalArgumentException(
+          "Unable to encode geometry for PostGIS: " + e.getMessage(), e);
     }
-
-    if (geometry.getSRID() > 0) {
-      return "SRID=" + geometry.getSRID() + ";" + wkt;
-    }
-    return wkt;
   }
 
   private static boolean isHexWkb(String value) {

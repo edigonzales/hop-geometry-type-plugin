@@ -22,6 +22,11 @@ package com.atolcd.hop.core.row.value;
  * #L%
  */
 
+import com.atolcd.hop.gis.geometry.codec.GeometryCodec;
+import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
+import com.atolcd.hop.gis.geometry.codec.GeometryHexCodec;
+import com.atolcd.hop.gis.geometry.codec.GeometryReadLimits;
+import com.atolcd.hop.gis.geometry.codec.WkbWriteOptions;
 import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import com.atolcd.hop.gis.geometry.postgis.PostgisGeometrySupport;
 import com.atolcd.hop.gis.utils.GeometryUtils;
@@ -73,6 +78,8 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
   // a phone keypad
 
+  private final GeometryCodec codec = new GeometryCodec(GeometryReadLimits.defaults());
+
   public ValueMetaGeometry() {
     this(null);
   }
@@ -112,7 +119,7 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
             Geometry geometry = getGeometry(object);
 
-            if (CurveGeometrySupport.isCurveGeometry(geometry)) {
+            if (CurveGeometrySupport.containsCurveGeometry(geometry)) {
               string = CurveGeometrySupport.writeWkt(geometry);
             } else {
               string = com.atolcd.hop.gis.geometry.curve.LinearGeometryCodec.writeWkt(geometry);
@@ -334,17 +341,105 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
 
   @Override
   public Object convertData(IValueMeta meta2, Object data2) throws HopValueException {
+    if (data2 == null) {
+      return null;
+    }
     try {
       switch (meta2.getType()) {
         case IValueMeta.TYPE_STRING:
-          return convertStringToGeometry(meta2.getString(data2));
+          return convertStringData(meta2.getString(data2));
+        case IValueMeta.TYPE_BINARY:
+          return convertBinaryData(meta2.getBinary(data2));
         case TYPE_GEOMETRY:
           return data2;
         default:
           throw new HopValueException(meta2.toStringMeta() + " : can't be converted to a geometry");
       }
-    } catch (HopPluginException kpe) {
-      throw new HopValueException(kpe);
+    } catch (HopValueException e) {
+      throw e;
+    } catch (GeometryCodecException e) {
+      throw new HopValueException(
+          "Unable to convert value to Geometry (" + e.code() + ")", e);
+    } catch (Exception e) {
+      throw new HopValueException("Unable to convert value to Geometry", e);
+    }
+  }
+
+  private Geometry convertStringData(String text) throws Exception {
+    if (text == null || text.isBlank()) {
+      return null;
+    }
+    if (GeometryHexCodec.hasExplicitPrefix(text) || GeometryHexCodec.looksLikeHeaderedHex(text)) {
+      return codec.readBinary(GeometryHexCodec.decode(text));
+    }
+    return GeometryUtils.getGeometryFromEWKT(text);
+  }
+
+  private Geometry convertBinaryData(byte[] bytes) throws GeometryCodecException {
+    if (bytes == null) {
+      return null;
+    }
+    return codec.readBinary(bytes);
+  }
+
+  /**
+   * Source-metadata hook for the normal Binary target type. The payload is plain WKB/EWKB, not
+   * Hop's internal stream framing.
+   */
+  @Override
+  public byte[] getBinary(Object object) throws HopValueException {
+    if (object == null) {
+      return null;
+    }
+    Geometry geometry = geometryForBinary(object);
+    if (geometry == null) {
+      return null;
+    }
+    try {
+      return codec.writeBinary(geometry, WkbWriteOptions.standardFieldBinary());
+    } catch (GeometryCodecException e) {
+      throw new HopValueException(
+          "Unable to convert Geometry to binary (" + e.code() + ")", e);
+    }
+  }
+
+  private Geometry geometryForBinary(Object object) throws HopValueException {
+    if (object instanceof Geometry geometry) {
+      return geometry;
+    }
+    if (type != TYPE_GEOMETRY) {
+      throw new HopValueException(
+          toString() + " : expected a Geometry value for binary conversion");
+    }
+    switch (storageType) {
+      case IValueMeta.STORAGE_TYPE_NORMAL:
+        throw new HopValueException(
+            toString() + " : normal Geometry storage requires a Geometry value");
+      case IValueMeta.STORAGE_TYPE_INDEXED:
+        if (!(object instanceof Integer indexValue)) {
+          throw new HopValueException(
+              toString() + " : indexed Geometry storage requires an Integer index");
+        }
+        if (index == null || indexValue < 0 || indexValue >= index.length) {
+          throw new HopValueException(
+              toString() + " : indexed Geometry storage index is out of range: " + indexValue);
+        }
+        Object indexed = index[indexValue];
+        if (indexed == null) {
+          return null;
+        }
+        if (indexed instanceof Geometry geometry) {
+          return geometry;
+        }
+        throw new HopValueException(
+            toString() + " : indexed Geometry storage does not contain a Geometry value");
+      case IValueMeta.STORAGE_TYPE_BINARY_STRING:
+        throw new HopValueException(
+            toString()
+                + " : lazy binary-string storage is not supported for Geometry binary output");
+      default:
+        throw new HopValueException(
+            toString() + " : unknown Geometry storage type " + storageType);
     }
   }
 
@@ -358,6 +453,37 @@ public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterfac
     try {
       if (object == null || object instanceof Geometry) {
         return (Geometry) object;
+      }
+      if (type == TYPE_GEOMETRY) {
+        switch (storageType) {
+          case IValueMeta.STORAGE_TYPE_NORMAL:
+            throw new HopValueException(
+                toString() + " : normal Geometry storage requires a Geometry value");
+          case IValueMeta.STORAGE_TYPE_INDEXED:
+            if (!(object instanceof Integer indexValue)) {
+              throw new HopValueException(
+                  toString() + " : indexed Geometry storage requires an Integer index");
+            }
+            if (index == null || indexValue < 0 || indexValue >= index.length) {
+              throw new HopValueException(
+                  toString() + " : indexed Geometry storage index is out of range: " + indexValue);
+            }
+            Object indexed = index[indexValue];
+            if (indexed == null) {
+              return null;
+            }
+            if (indexed instanceof Geometry geometry) {
+              return geometry;
+            }
+            throw new HopValueException(
+                toString() + " : indexed Geometry storage does not contain a Geometry value");
+          case IValueMeta.STORAGE_TYPE_BINARY_STRING:
+            throw new HopValueException(
+                toString() + " : lazy binary-string storage is not supported for Geometry");
+          default:
+            throw new HopValueException(
+                toString() + " : unknown Geometry storage type " + storageType);
+        }
       }
       switch (type) {
         case IValueMeta.TYPE_NUMBER:

@@ -1,8 +1,8 @@
 package com.atolcd.hop.gis.geometry.curve;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.io.ParseException;
 
 /** Dispatches between standard JTS codecs and the curve-aware SQL/MM codecs. */
@@ -17,8 +17,26 @@ public final class CurveGeometrySupport {
         || geometry instanceof MultiSurface;
   }
 
+  /** Recursive curve detection, including ordinary GeometryCollections with curve members. */
+  public static boolean containsCurveGeometry(Geometry geometry) {
+    if (geometry == null) {
+      return false;
+    }
+    if (isCurveGeometry(geometry)) {
+      return true;
+    }
+    if (geometry instanceof GeometryCollection collection) {
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        if (containsCurveGeometry(collection.getGeometryN(i))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   public static String writeWkt(Geometry geometry) {
-    if (!isCurveGeometry(geometry)) {
+    if (!containsCurveGeometry(geometry)) {
       throw new IllegalArgumentException(
           "Not a supported curve geometry: " + geometry.getClass().getName());
     }
@@ -26,38 +44,27 @@ public final class CurveGeometrySupport {
   }
 
   public static byte[] writeWkb(Geometry geometry) {
-    if (isCurveGeometry(geometry)) {
+    if (containsCurveGeometry(geometry)) {
       return new CurveWkbWriter().write(geometry);
     }
-    boolean includeSrid = geometry.getSRID() != 0;
     return LinearGeometryCodec.writeWkb(geometry);
   }
 
   public static Geometry readWkb(byte[] wkb) throws ParseException {
-    int rawType = readRawType(wkb);
-    int type = rawType & CurveWkbReader.EWKB_TYPE_MASK;
-    int baseType = type >= 1000 ? type % 1000 : type;
-
-    if (isSupportedCurveType(baseType)) {
-      try {
-        return new CurveWkbReader().read(wkb);
-      } catch (IllegalArgumentException e) {
-        ParseException parseException = new ParseException(e.getMessage());
-        parseException.initCause(e);
-        throw parseException;
-      }
+    try {
+      return new CurveWkbReader().readChecked(wkb);
+    } catch (GeometryCodecException e) {
+      ParseException parseException = new ParseException(e.getMessage());
+      parseException.initCause(e);
+      throw parseException;
     }
-
-    return LinearGeometryCodec.readWkb(wkb);
   }
 
   public static Geometry copy(Geometry geometry) {
-    Geometry copy;
-    if (isCurveGeometry(geometry)) {
-      copy = new CurveWkbReader(geometry.getFactory()).read(new CurveWkbWriter().write(geometry));
-    } else {
-      copy = geometry.copy();
+    if (geometry == null) {
+      return null;
     }
+    Geometry copy = geometry.copy();
     copy.setSRID(geometry.getSRID());
     return copy;
   }
@@ -123,28 +130,5 @@ public final class CurveGeometrySupport {
     } else result = geometry.copy();
     result.setSRID(geometry.getSRID());
     return result;
-  }
-
-  private static boolean isSupportedCurveType(int type) {
-    return type == CurveWkbReader.WKB_CIRCULARSTRING
-        || type == CurveWkbReader.WKB_COMPOUNDCURVE
-        || type == CurveWkbReader.WKB_CURVEPOLYGON
-        || type == CurveWkbReader.WKB_MULTICURVE
-        || type == CurveWkbReader.WKB_MULTISURFACE;
-  }
-
-  private static int readRawType(byte[] wkb) throws ParseException {
-    if (wkb == null || wkb.length < 5) {
-      throw new ParseException("WKB is too short");
-    }
-
-    ByteOrder order =
-        switch (wkb[0] & 0xff) {
-          case 0 -> ByteOrder.BIG_ENDIAN;
-          case 1 -> ByteOrder.LITTLE_ENDIAN;
-          default -> throw new ParseException("Invalid WKB byte order: " + (wkb[0] & 0xff));
-        };
-
-    return ByteBuffer.wrap(wkb, 1, Integer.BYTES).order(order).getInt();
   }
 }

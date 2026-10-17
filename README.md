@@ -188,6 +188,28 @@ Install this Geometry plugin build together with the updated Inspector, Raster T
 Vector/Raster plugins. Keep a single Geometry Type installation in the shared `sogeo-geometry`
 classloader group; it supplies JTS as well as the common GeoTools/Imagen runtime.
 
+## Strict shared geometry codec (0.2.0-SNAPSHOT)
+
+The common API under `com.atolcd.hop.gis.geometry.codec` provides explicit, loss-aware text and
+binary conversion:
+
+- `GeometryCodec.readText/readBinary/readHex` and `writeText/writeBinary/writeHex`;
+- WKT/EWKT, ISO/SQL-MM WKB and EWKB, both byte orders and explicit SRID options;
+- XY, XYZ, XYM and XYZM based on declared coordinate sequences, including all-NaN Z/M ordinates;
+- SQL/MM `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE` and `MULTISURFACE`,
+  including curves nested in ordinary geometry collections;
+- stable `GeometryCodecException` error codes, configurable read limits and exact copies.
+
+`ValueMetaGeometry.convertData(...)` now accepts WKB/EWKB binary input and recognises explicit or
+plausible hex strings in addition to the existing text path. `ValueMetaGeometry.getBinary(...)`
+implements the normal Binary target hook (`new ValueMetaBinary(...).convertData(geometryMeta,
+geometry)`), producing plain EWKB with big-endian byte order and no Hop stream framing.
+
+Legacy compatibility is deliberate: the historical `GeometryUtils.getGeometryFromEWKT(...)` path
+still maps `EMPTY` to `NULL` for existing Select Values pipelines, while `GeometryCodec` preserves
+empty geometry objects. Standard `getString()` output and the internal Hop stream framing are
+unchanged.
+
 ## Explicit circular-curve linearization
 
 `CurveGeometrySupport.linearize(geometry, maxError)` recursively creates linear geometries from
@@ -201,5 +223,9 @@ operation. A row-local linearization cannot ensure shared chords when neighbours
 same circle using different control-point subdivisions.
 
 The circular WKB codecs preserve XY/XYZ/XYM/XYZM using EWKB flags or SQL/MM type offsets.
-Curve WKT output includes dimension tags and ordinates. The existing WKT input parser remains
-linear-only; use Geometry objects or SQL/MM WKB for exact curved input.
+`GeometryCodec` and the extended `CurveWktReader` also read curved WKT with declared layout
+markers, `EMPTY` rules and full input-consumption checks. The legacy Select Values text path uses
+the same parser through `GeometryUtils`, but keeps its historical `EMPTY → NULL` normalisation.
+See [docs/implementation/geometry-converter-stage-b.md](docs/implementation/geometry-converter-stage-b.md)
+for the implementation record and [handover/stage-b/README.md](handover/stage-b/README.md) for the
+tested artifacts.

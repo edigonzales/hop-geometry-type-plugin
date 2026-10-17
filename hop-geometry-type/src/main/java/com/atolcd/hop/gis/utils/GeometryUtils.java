@@ -1,31 +1,30 @@
 package com.atolcd.hop.gis.utils;
 
+import com.atolcd.hop.gis.geometry.codec.GeometryCodec;
+import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
+import com.atolcd.hop.gis.geometry.codec.GeometryReadLimits;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKTReader;
 
 public final class GeometryUtils {
 
   private GeometryUtils() {}
 
+  /**
+   * Legacy WKT/EWKT entry point used by Select Values. The shared strict parser is used, but the
+   * historical EMPTY→NULL normalization is deliberately retained. New transport callers use
+   * {@link GeometryCodec} directly and therefore preserve EMPTY.
+   */
   public static Geometry getGeometryFromEWKT(String ewkt) throws Exception {
     if (ewkt == null || ewkt.isBlank()) {
       return null;
     }
 
     try {
-      String[] parts = ewkt.split(";", 2);
-      if (parts.length == 2 && parts[0].toUpperCase().startsWith("SRID=")) {
-        int srid = Integer.parseInt(parts[0].substring(5).trim());
-        Geometry geometry = new WKTReader().read(parts[1]);
-        geometry.setSRID(srid);
-        return geometry.isEmpty() ? null : geometry;
-      }
-
-      Geometry geometry = new WKTReader().read(ewkt);
-      return geometry.isEmpty() ? null : geometry;
-    } catch (ParseException | NumberFormatException e) {
-      throw new Exception("The value \"" + ewkt + "\" is not a WKT/EWKT valid string", e);
+      Geometry geometry =
+          new GeometryCodec(GeometryReadLimits.defaults()).readText(ewkt);
+      return geometry == null || geometry.isEmpty() ? null : geometry;
+    } catch (GeometryCodecException e) {
+      throw new Exception("The value is not a valid WKT/EWKT string", e);
     }
   }
 
