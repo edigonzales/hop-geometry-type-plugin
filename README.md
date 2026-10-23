@@ -59,6 +59,16 @@ PostGIS -> Table Input -> Geometry-aware transforms -> Table Output -> PostGIS
 
 CI verifies the actual Hop `Database` read/write path against a real PostGIS service, including geometry type detection, SRID 2056, and true-curve read/write/read round trips.
 
+## GeoJSON and JSON-FG
+
+The shared `GeometryCodec` supports explicit Geometry conversion for RFC 7946,
+Legacy GeoJSON 2008 and JSON-FG 1.0.0, including supported true curves and M values.
+It preserves CRS/measure context separately from the Geometry and never reprojects
+or discards dimensions implicitly. See the [GeoJSON API and format guide](docs/geojson.md)
+for examples, axis order, height requirements, loss options and format limits.
+Feature and FeatureCollection processing belongs to Vector/Raster; the
+Geoprocessing Geometry Converter exposes the shared Geometry codec in pipelines.
+
 ## Repository layout
 ```text
 .

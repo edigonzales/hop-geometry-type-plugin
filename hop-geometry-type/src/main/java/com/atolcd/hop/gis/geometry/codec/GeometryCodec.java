@@ -66,6 +66,38 @@ public final class GeometryCodec {
     GeometrySridSupport.resolveConsistentSrid(geometry);
   }
 
+  /** Reads a geometry object; Feature/FeatureCollection belong to the Feature codec. */
+  public GeoJsonReadResult readGeoJson(String json, GeoJsonReadOptions options)
+      throws GeometryCodecException {
+    Object value = JsonSupport.parse(json);
+    if (value == null) return new GeoJsonReadResult(null,
+        options == null ? GeoJsonContext.empty() : options.context());
+    if (!(value instanceof java.util.Map<?,?>))
+      throw new GeometryCodecException(GeometryCodecErrorCode.GC_INVALID_JSON, "Expected a Geometry object");
+    @SuppressWarnings("unchecked") java.util.Map<String,Object> object = (java.util.Map<String,Object>) value;
+    return readGeoJsonObject(object, options);
+  }
+
+  /** Reads an already parsed object using inherited Feature/document context. */
+  public GeoJsonReadResult readGeoJsonObject(java.util.Map<String,Object> object, GeoJsonReadOptions options)
+      throws GeometryCodecException {
+    return new GeoJsonGeometryCodec(factory, limits).read(object,
+        options == null ? GeoJsonReadOptions.defaults() : options);
+  }
+
+  /** Writes a standalone Geometry JSON document, without changing the input. */
+  public String writeGeoJson(Geometry geometry, GeoJsonWriteOptions options)
+      throws GeometryCodecException {
+    return JsonSupport.stringify(writeGeoJsonObject(geometry, options));
+  }
+
+  /** Writes an object whose document metadata may be lifted by a Feature encoder. */
+  public java.util.Map<String,Object> writeGeoJsonObject(Geometry geometry, GeoJsonWriteOptions options)
+      throws GeometryCodecException {
+    return new GeoJsonGeometryCodec(factory, limits).write(geometry,
+        options == null ? GeoJsonWriteOptions.defaults() : options);
+  }
+
   public GeometryReadLimits limits() {
     return limits;
   }

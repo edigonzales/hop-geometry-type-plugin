@@ -1,0 +1,2 @@
+# Independent JSON Schema 2020-12 validation of the emitted JSON-FG fixtures.
+jsonschema==4.25.1

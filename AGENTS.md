@@ -40,9 +40,15 @@ export POSTGIS_TEST_ENABLED=true
 export POSTGIS_TEST_HOST=localhost POSTGIS_TEST_PORT=5432
 export POSTGIS_TEST_DATABASE=hop POSTGIS_TEST_USER=hop POSTGIS_TEST_PASSWORD=hop
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
-python3 -m unittest discover -s scripts/tests -v
+python3 -m venv "$CI_TEST_TMP/python"
+"$CI_TEST_TMP/python/bin/python" -m pip install --requirement scripts/requirements-test.txt
+"$CI_TEST_TMP/python/bin/python" -m unittest discover -s scripts/tests -v
 bash scripts/check-distribution.sh
 ```
+
+The Python tests require the pinned `jsonschema` test dependency and validate actual
+Maven-emitted JSON-FG samples against the vendored OGC schemas without network access.
+Run Maven tests first so `hop-geometry-type/target/jsonfg-emitted.json` exists.
 
 The distribution check requires `unzip` and exactly one ZIP in
 `assemblies/assemblies-hop-geometry-type/target`. It verifies the Geometry/JTS

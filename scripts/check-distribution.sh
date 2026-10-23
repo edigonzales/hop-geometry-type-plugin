@@ -17,6 +17,7 @@ grep -E 'plugins/misc/hop-geometry-type/hop-geometry-type-[^/]+\.jar$' "$LAYOUT_
 
 required_runtime=(
   'jts-core-'
+  'jackson-core-'
   'gt-main-'
   'gt-render-'
   'gt-wms-'

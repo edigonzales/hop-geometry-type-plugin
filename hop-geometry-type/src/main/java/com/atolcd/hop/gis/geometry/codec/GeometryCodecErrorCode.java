@@ -2,6 +2,9 @@ package com.atolcd.hop.gis.geometry.codec;
 
 /** Stable, user-facing geometry codec error codes. */
 public enum GeometryCodecErrorCode {
+  GC_INVALID_JSON,
+  GC_UNSUPPORTED_CRS,
+  GC_LOSSY_CONVERSION,
   GC_INVALID_WKT,
   GC_INVALID_WKB,
   GC_INVALID_HEX,

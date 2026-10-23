@@ -21,7 +21,7 @@ class DistributionTest(unittest.TestCase):
         entries.extend(
             ROOT + "lib/" + fragment + "fixture.jar"
             for fragment in (
-                "jts-core-", "gt-main-", "gt-render-", "gt-wms-", "gt-wmts-",
+                "jts-core-", "jackson-core-", "gt-main-", "gt-render-", "gt-wms-", "gt-wmts-",
                 "gt-epsg-hsql-", "gt-geotiff-", "imagen-core-", "imageio-ext-",
                 "indriya-", "unit-api-", "systems-common-",
             )
@@ -84,7 +84,7 @@ class DistributionTest(unittest.TestCase):
 
     def test_missing_required_runtime_jars(self):
         for entry in ("hop-geometry-type-0.2.0-SNAPSHOT.jar", "lib/jts-core-fixture.jar",
-                      "lib/gt-main-fixture.jar", "lib/imagen-core-fixture.jar"):
+                      "lib/gt-main-fixture.jar", "lib/jackson-core-fixture.jar", "lib/imagen-core-fixture.jar"):
             with self.subTest(entry=entry):
                 self.archive(omit=[ROOT + entry])
                 self.assertNotEqual(self.check().returncode, 0)
