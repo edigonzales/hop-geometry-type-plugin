@@ -7,12 +7,7 @@ permissions:
   contents: read
 
 env:
-  CI_REF: 16f5518dc21ad5053ce4f137c6bdf97a5ebce5b7
-  POM_FILE: assemblies/assemblies-hop-geometry-type/pom.xml
-  ZIP_GLOB: assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip
-  ARTIFACT_PREFIX: hop-geometry-type-plugin
-  PLUGIN_ROOT: plugins/misc/hop-geometry-type
-  HOP_VERSION: 2.19.0
+  CI_REF: f0a1eec368cb8c5d2592086b26393a6fc3916ad1
 
 jobs:
   canonical:
@@ -78,49 +73,22 @@ jobs:
           "$RUNNER_TEMP/geometry-test-python/bin/python" -m unittest discover -s scripts/tests -v
           bash scripts/check-distribution.sh
 
-      - name: Create canonical manifest
+      - name: Collect tested files and POMs
         env:
-          MAVEN_SETTINGS: ${{ runner.temp }}/maven-settings.xml
+          ARTIFACTS: >-
+            [{"pom":"pom.xml"},
+             {"file":"hop-geometry-type/target/hop-geometry-type-*-SNAPSHOT.jar","pom":"hop-geometry-type/pom.xml"},
+             {"file":"assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip","pom":"assemblies/assemblies-hop-geometry-type/pom.xml"}]
         run: |
-          set -euo pipefail
-          mkdir -p .ci/verified/upload
-          version="$(mvn -q -s "$MAVEN_SETTINGS" -f "$POM_FILE" -DforceStdout help:evaluate -Dexpression=project.version)"
-          python3 .ci/hop-plugin-ci/scripts/build_manifest.py \
-            --zip-glob "$ZIP_GLOB" \
-            --version "$version" \
-            --repository "$GITHUB_REPOSITORY" \
-            --commit-sha "$GITHUB_SHA" \
-            --group-id ch.so.agi \
-            --artifact-id hop-geometry-type-plugin \
-            --hop-version "$HOP_VERSION" \
-            --plugin-root "$PLUGIN_ROOT" \
-            --output .ci/verified/manifest.json
-          zip_path="$(find assemblies/assemblies-hop-geometry-type/target -maxdepth 1 -type f -name 'hop-geometry-type-plugin-*.zip' -print)"
-          test "$(printf '%s\n' "$zip_path" | wc -l)" -eq 1
-          cp "$zip_path" .ci/verified/upload/
-          cp .ci/verified/manifest.json .ci/verified/upload/hop-geometry-type-plugin-canonical.manifest.json
+          python3 .ci/hop-plugin-ci/scripts/stage_artifacts.py \
+            --pom pom.xml --artifacts "$ARTIFACTS" --output "$RUNNER_TEMP/hop-publication"
 
-      - name: Prepare shared Geometry Maven artifacts
-        run: |
-          set -euo pipefail
-          mapfile -t jars < <(find hop-geometry-type/target -maxdepth 1 -type f \
-            -name 'hop-geometry-type-*.jar' \
-            ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort)
-          if [[ ${#jars[@]} -ne 1 ]]; then
-            echo "Expected exactly one shared Geometry JAR" >&2
-            printf '%s\n' "${jars[@]}" >&2
-            exit 1
-          fi
-          cp "${jars[0]}" .ci/verified/upload/hop-geometry-type.jar
-          cp hop-geometry-type/pom.xml .ci/verified/upload/hop-geometry-type.pom
-          cp pom.xml .ci/verified/upload/hop-geometry-type-parent.pom
-
-      - name: Upload canonical ZIP and manifest
+      - name: Upload canonical artifacts
         uses: actions/upload-artifact@v4
         with:
           name: hop-geometry-type-plugin-canonical
           if-no-files-found: error
-          path: .ci/verified/upload/*
+          path: ${{ runner.temp }}/hop-publication
 
       - name: Retain test reports
         if: always()
