@@ -75,7 +75,7 @@ Geoprocessing Geometry Converter exposes the shared Geometry codec in pipelines.
 ├── hop-geometry-type/                          # core plugin jar with ValueMetaGeometry
 ├── assemblies/assemblies-hop-geometry-type/   # builds/installable Hop plugin ZIP artifact (hop-geometry-type-plugin)
 ├── scripts/dev-sync-hop-plugin.sh             # fast local sync into HOP_HOME
-└── .github/workflows/release.yml              # build+test and publish workflow
+└── .github/workflows/                         # verification and snapshot publication
 ```
 
 ## Build
@@ -120,7 +120,7 @@ Vector/Raster use this classloader and must not package their own copies. The Po
 PostGIS JDBC drivers remain owned by Hop's database plugin and are intentionally excluded.
 
 ## Use in your own plugin project
-If you only need the Java API/type at compile/runtime:
+Use the Maven coordinate for the Java API and Geometry type at compile time:
 
 ```xml
 <dependency>
@@ -130,7 +130,9 @@ If you only need the Java API/type at compile/runtime:
 </dependency>
 ```
 
-For Hop runtime installation, install the ZIP into your Hop home.
+Install the ZIP into your Hop home to provide the shared runtime and its libraries.
+Standalone Maven consumers that exercise the runtime must supply any required
+`provided` libraries, such as Jackson and GeoTools for the GeoJSON codec.
 
 When updating, stop Hop, replace the complete `plugins/misc/hop-geometry-type` directory
 with the contents of the new Geometry Type ZIP, then restart Hop GUI/server completely.
@@ -160,14 +162,13 @@ What the script does:
 This provides a short feedback loop when refining geometry-related plugin code.
 
 ## Publishing to jars.interlis.guru
-Deployment target is configured via `distributionManagement`:
+GitHub Actions verifies PRs and pushes to `main`. The canonical build uses
+Ubuntu and JDK 21 with PostGIS. The compatibility matrix runs tests on Linux,
+macOS and Windows with JDK 21 and 25.
 
-- Releases: `https://jars.interlis.guru/releases/`
-- Snapshots: `https://jars.interlis.guru/snapshots/`
-
-GitHub Actions workflow:
-- always runs build/tests on PRs and pushes (Linux / ubuntu-latest)
-- publishes only on **push to `main`** (i.e. after merge)
+The [snapshot workflow](.github/workflows/publish-snapshot.yml) publishes to
+`https://jars.interlis.guru/snapshots/` after verification on a push to `main`
+or a manual run on `main`.
 
 Required repository secrets:
 - `MAVEN_USERNAME`
@@ -179,10 +180,6 @@ Published artifacts are now intentionally separated by role:
 - `hop-geometry-type-parent` (parent POM only)
 - `hop-geometry-type` (core JAR)
 - `hop-geometry-type-plugin` (plugin ZIP distribution)
-
-Maven deploy target selection is version-based:
-- `*-SNAPSHOT` versions are deployed to `sogeo-snapshots`
-- non-SNAPSHOT versions are deployed to `sogeo-releases`
 
 ## Notes on extraction provenance
 Implementation originates from:

@@ -2,9 +2,9 @@
 
 ## CI and tests
 
-Before changing pipelines or test setup, read the
-[shared CI contract](https://github.com/edigonzales/hop-plugin-ci/blob/main/docs/ci-contract.md).
-Use the CI interfaces at the shared workflow pin.
+Before changing pipelines or test setup, read `docs/ci-contract.md` in the
+`hop-plugin-ci` checkout at the `CI_REF` pinned in
+[the verification workflow](.github/workflows/verify.yml).
 
 ### Maven transport
 
