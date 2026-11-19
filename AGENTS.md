@@ -2,10 +2,9 @@
 
 ## CI and tests
 
-Before changing pipelines or test setup, read the
-[shared CI contract](https://github.com/edigonzales/hop-plugin-ci/blob/main/docs/ci-contract.md).
-The documentation follows `main`; use the interfaces at this repo's actual
-workflow/helper revisions and preserve existing pins and `ci-ref` values.
+Before changing pipelines or test setup, read `docs/ci-contract.md` in the
+`hop-plugin-ci` checkout at the `CI_REF` pinned in
+[the verification workflow](.github/workflows/verify.yml).
 
 ### Maven transport
 
@@ -62,7 +61,7 @@ unset POSTGIS_TEST_ENABLED
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp test
 ```
 
-The custom canonical job creates the legacy ZIP manifest and also carries the
+The custom canonical job uploads the tested ZIP and the
 already-built shared Geometry JAR, module POM and parent POM for downstream Maven
 consumers. Its pinned publication workflow deploys these files without rebuilding.
 No separate installed-Hop E2E job exists in this verify workflow; retain its
