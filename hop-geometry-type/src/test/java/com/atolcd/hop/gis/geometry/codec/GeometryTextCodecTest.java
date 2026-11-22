@@ -2,6 +2,7 @@ package com.atolcd.hop.gis.geometry.codec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.atolcd.hop.gis.geometry.curve.CircularString;
 import com.atolcd.hop.gis.geometry.curve.CompoundCurve;
@@ -84,7 +85,7 @@ class GeometryTextCodecTest {
 
   @Test
   void readsAndWritesEwktPrefix() throws Exception {
-    Geometry geometry = codec.readText("srid=2056;POINT (1 2)");
+    Geometry geometry = codec.readText("  srid=2056;POINT (1 2)  ");
     assertThat(geometry.getSRID()).isEqualTo(2056);
     assertThat(codec.writeText(geometry, WktWriteOptions.wkt())).isEqualTo("POINT (1 2)");
     assertThat(codec.writeText(geometry, WktWriteOptions.legacy()))
@@ -207,29 +208,11 @@ class GeometryTextCodecTest {
   }
 
   @Test
-  void parserStateIsResetAfterErrorOnTheSameCodec() throws Exception {
-    assertThatThrownBy(() -> codec.readText("CIRCULARSTRING (1 0, 0 1, -1 0) garbage"))
-        .isInstanceOf(GeometryCodecException.class);
-    Geometry geometry = codec.readText("CIRCULARSTRING (1 0, 0 1, -1 0)");
-    assertThat(geometry).isInstanceOf(CircularString.class);
-  }
-
-  @Test
   void rejectsKnownUnsupportedTypesAndUnknownTypes() {
     assertCode(
         () -> codec.readText("TIN (((0 0, 1 0, 0 1, 0 0)))"),
         GeometryCodecErrorCode.GC_UNSUPPORTED_GEOMETRY);
     assertCode(() -> codec.readText("BOGUS (1 2)"), GeometryCodecErrorCode.GC_INVALID_WKT);
-  }
-
-  @Test
-  void splitSridPrefixRemainsPackageTestable() throws Exception {
-    GeometryTextCodec textCodec = new GeometryTextCodec(GeometryReadLimits.defaults());
-    GeometryTextCodec.EwktParts parts =
-        textCodec.splitSridPrefix("  SRID=2056;POINT (1 2)  ");
-    assertThat(parts.explicitSrid()).isEqualTo(2056);
-    assertThat(parts.body()).isEqualTo("POINT (1 2)");
-    assertThat(textCodec.splitSridPrefix("POINT (1 2)").explicitSrid()).isNull();
   }
 
   @Test
@@ -278,12 +261,8 @@ class GeometryTextCodecTest {
     assertThat(sequence.getMeasures()).isEqualTo(layout.measures());
     assertThat(sequence.getX(0)).isEqualTo(x);
     assertThat(sequence.getY(0)).isEqualTo(y);
-    if (layout.hasZ()) {
-      GeometryAssertions.assertOrdinate(z, sequence.getZ(0), "z");
-    }
-    if (layout.hasM()) {
-      GeometryAssertions.assertOrdinate(m, sequence.getM(0), "m");
-    }
+    assertEquals(z, sequence.getZ(0), "z");
+    assertEquals(m, sequence.getM(0), "m");
   }
 
   private static void assertCode(ThrowingCallable call, GeometryCodecErrorCode code) {

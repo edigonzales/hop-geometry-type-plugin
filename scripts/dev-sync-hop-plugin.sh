@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <HOP_HOME>"
+HOP_HOME=${1:-${HOP_HOME:-}}
+if [[ $# -gt 1 || -z "$HOP_HOME" ]]; then
+  echo "Usage: $0 [<HOP_HOME>] (defaults to HOP_HOME)" >&2
   exit 1
 fi
-
-HOP_HOME=$1
 PLUGIN_DIR="$HOP_HOME/plugins/misc/hop-geometry-type"
 
 mvn -q -DskipTests package
 
+shopt -s nullglob
+zip_files=(assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip)
+if [[ ${#zip_files[@]} -ne 1 ]]; then
+  echo "Expected one built Geometry Type ZIP, found ${#zip_files[@]}" >&2
+  exit 1
+fi
 rm -rf "$PLUGIN_DIR"
-mkdir -p "$PLUGIN_DIR"
-cp assemblies/assemblies-hop-geometry-type/target/hop-geometry-type-plugin-*.zip /tmp/hop-geometry-type-plugin.zip
-unzip -q -o /tmp/hop-geometry-type-plugin.zip -d "$HOP_HOME"
+unzip -q -o "${zip_files[0]}" -d "$HOP_HOME"
 
 echo "Plugin synced to $PLUGIN_DIR"

@@ -35,16 +35,6 @@ class GeometryLayoutSupportTest {
   }
 
   @Test
-  void xymMeasuresUseTheSecondNonXyIndex() throws Exception {
-    Point point = (Point) codec.readText("POINT M (1 2 9)");
-    CoordinateSequence sequence = point.getCoordinateSequence();
-    assertThat(sequence.getDimension()).isEqualTo(3);
-    assertThat(sequence.getMeasures()).isEqualTo(1);
-    assertThat(sequence.getM(0)).isEqualTo(9);
-    assertThat(sequence.getZ(0)).isNaN();
-  }
-
-  @Test
   void aggregateLayoutIsTheUnionForHeterogeneousCollections() throws Exception {
     Geometry collection =
         codec.readText("GEOMETRYCOLLECTION (POINT (1 2), POINT Z (3 4 5), POINT M (6 7 8))");

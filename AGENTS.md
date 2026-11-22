@@ -49,7 +49,7 @@ The Python tests require the pinned `jsonschema` test dependency and validate ac
 Maven-emitted JSON-FG samples against the vendored OGC schemas without network access.
 Run Maven tests first so `hop-geometry-type/target/jsonfg-emitted.json` exists.
 
-The distribution check requires `unzip` and exactly one ZIP in
+The distribution check requires `unzip`, Python 3 and exactly one ZIP in
 `assemblies/assemblies-hop-geometry-type/target`. It verifies the Geometry/JTS
 layout and excludes database drivers that Hop supplies.
 

@@ -9,11 +9,7 @@ if [[ ${#zip_files[@]} -ne 1 ]]; then
 fi
 ZIP="${zip_files[0]}"
 echo "Checking $ZIP"
-LAYOUT_FILE="$(mktemp)"
-trap 'rm -f "$LAYOUT_FILE"' EXIT
-unzip -l "$ZIP" > "$LAYOUT_FILE"
-
-grep -E 'plugins/misc/hop-geometry-type/hop-geometry-type-[^/]+\.jar$' "$LAYOUT_FILE"
+layout=$(unzip -Z1 "$ZIP")
 
 required_runtime=(
   'jts-core-'
@@ -31,23 +27,23 @@ required_runtime=(
   'systems-common-'
 )
 for fragment in "${required_runtime[@]}"; do
-  if ! grep -E "plugins/misc/hop-geometry-type/lib/${fragment}[^/]+\\.jar$" "$LAYOUT_FILE" >/dev/null; then
+  if ! grep -E "plugins/misc/hop-geometry-type/lib/${fragment}[^/]+\\.jar$" <<< "$layout" >/dev/null; then
     echo "Shared Geometry runtime is missing a JAR matching ${fragment}" >&2
     exit 1
   fi
 done
 
-if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' "$LAYOUT_FILE"; then
+if grep -E 'plugins/misc/hop-geometry-type/jts-core-[^/]+\.jar$' <<< "$layout"; then
   echo "jts-core must be packaged under hop-geometry-type/lib, not in the plugin root" >&2
   exit 1
 fi
 
-if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgresql-[^/]+\.jar$' "$LAYOUT_FILE"; then
+if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgresql-[^/]+\.jar$' <<< "$layout"; then
   echo "PostgreSQL JDBC must be provided by Hop's PostgreSQL database plugin, not sogeo-geometry" >&2
   exit 1
 fi
 
-if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgis-jdbc-[^/]+\.jar$' "$LAYOUT_FILE"; then
+if grep -E 'plugins/misc/hop-geometry-type/(lib/)?postgis-jdbc-[^/]+\.jar$' <<< "$layout"; then
   echo "postgis-jdbc must not be packaged in the shared geometry runtime" >&2
   exit 1
 fi

@@ -252,13 +252,7 @@ bash scripts/check-distribution.sh
 `Ran 6 tests ... OK`; Distributioncheck OK, genau ein ZIP, gültiges
 Geometry-/JTS-Layout, keine Datenbanktreiber.
 
-### Übergabe-Repository
-
-Ein separater Konsumenten-Compile gegen
-`handover/stage-b/maven-repo` (file-Repository, frisches lokales Maven-Repo)
-war erfolgreich. Das aufgelöste JAR hat exakt
-`d6b44299e0dc307211a94b40aed99d821b037d610014c3841e7d33f1fa73853a` –
-also das hier gebaute Artefakt, nicht der alte Remote-Snapshot.
+Ein separater Konsumenten-Compile gegen das damals gebaute Artefakt war erfolgreich.
 
 ## 5. Abweichungen und Entscheidungen
 
@@ -325,29 +319,3 @@ Nicht Bestandteil von Paket B und daher nicht behauptet:
 - Classloader-/JTS-Identitätsnachweis im installierten Stack;
 - E2E-/PostGIS-Installed-Hop-Pfade (Paket E);
 - Veröffentlichung, Push oder Deployment.
-
-Die nächste Etappe muss gegen das Übergabeartefakt in
-[`../../handover/stage-b`](../../handover/stage-b) arbeiten; Details stehen in
-[`handover/stage-b/README.md`](../../handover/stage-b/README.md).
-
-## 7. Übergabe an das Geoprocessing-Arbeitspaket
-
-Verfügbare API:
-
-- `GeometryCodec`, `GeometryReadLimits`
-- `GeometryTextCodec`, `GeometryBinaryCodec`, `GeometryHexCodec`
-- `GeometryLayoutSupport`, `GeometrySridSupport`, `PointCoordinateSupport`
-- `CoordinateLayout`, `PointCoordinates`
-- `WkbWriteOptions`, `WktWriteOptions`, `WkbDialect`, `GeometryByteOrder`,
-  `SridEncoding`
-- `GeometryCodecException`, `GeometryCodecErrorCode`
-
-Benötigte Artefakte:
-
-- `handover/stage-b/maven-repo/ch/so/agi/hop-geometry-type/0.2.0-SNAPSHOT/`
-- `handover/stage-b/maven-repo/ch/so/agi/hop-geometry-type-parent/0.2.0-SNAPSHOT/`
-- `handover/stage-b/hop-geometry-type-plugin-0.2.0-SNAPSHOT.zip`
-
-Noch zu erbringende Integrationsnachweise für Paket C–E: Schemacompiler,
-Runtime, Transform, Dialog, installierte Pipelines, Classloaderidentität,
-Fehlerhop, Zeilenbilanz und E2E.

@@ -2,6 +2,7 @@ package com.atolcd.hop.gis.geometry.codec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.atolcd.hop.gis.geometry.curve.CircularString;
 import com.atolcd.hop.gis.geometry.curve.CompoundCurve;
@@ -209,7 +210,9 @@ class GeometryBinaryCodecTest {
       Geometry decoded = codec.readBinary(wkb);
       GeometryAssertions.assertGeometryPreserved(geometry, decoded);
     }
-    for (String text : new String[] {"POINT EMPTY", "POINT Z EMPTY", "LINESTRING M EMPTY", "POLYGON EMPTY"}) {
+    for (String text : new String[] {
+          "POINT EMPTY", "POINT Z EMPTY", "LINESTRING EMPTY", "LINESTRING M EMPTY", "POLYGON EMPTY"
+        }) {
       Geometry geometry = codec.readText(text);
       Geometry decoded =
           codec.readBinary(codec.writeBinary(geometry, WkbWriteOptions.standardFieldBinary()));
@@ -255,8 +258,8 @@ class GeometryBinaryCodecTest {
     assertThat(sequence.getMeasures()).isEqualTo(layout.measures());
     assertThat(sequence.getX(0)).isEqualTo(x);
     assertThat(sequence.getY(0)).isEqualTo(y);
-    GeometryAssertions.assertOrdinate(layout.hasZ() ? z : Double.NaN, sequence.getZ(0), "z");
-    GeometryAssertions.assertOrdinate(layout.hasM() ? m : Double.NaN, sequence.getM(0), "m");
+    assertEquals(layout.hasZ() ? z : Double.NaN, sequence.getZ(0), "z");
+    assertEquals(layout.hasM() ? m : Double.NaN, sequence.getM(0), "m");
     assertThat(point.getSRID()).isEqualTo(srid);
   }
 
