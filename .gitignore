@@ -25,5 +25,5 @@ target
 hs_err_pid*
 replay_pid*
 
-# Python distribution-check tests
+# Python schema tests
 __pycache__/

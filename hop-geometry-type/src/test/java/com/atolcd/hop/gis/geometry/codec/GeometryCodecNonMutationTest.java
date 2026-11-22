@@ -25,6 +25,8 @@ class GeometryCodecNonMutationTest {
     codec.writeText(source, WktWriteOptions.ewkt());
     codec.writeBinary(source, WkbWriteOptions.standardFieldBinary());
     codec.writeBinary(source, WkbWriteOptions.iso(GeometryByteOrder.LITTLE_ENDIAN));
+    codec.writeBinary(source, WkbWriteOptions.iso(GeometryByteOrder.BIG_ENDIAN));
+    codec.writeBinary(source, WkbWriteOptions.ewkb(GeometryByteOrder.LITTLE_ENDIAN));
     codec.writeBinary(source, WkbWriteOptions.ewkb(GeometryByteOrder.BIG_ENDIAN));
     codec.writeHex(source, WkbWriteOptions.standardFieldBinary());
     codec.validateSupportedGeometry(source);

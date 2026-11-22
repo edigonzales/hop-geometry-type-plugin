@@ -147,19 +147,18 @@ JVM options are needed.
 ## Fast local development / live testing
 For rapid iteration against a local Hop installation:
 
-1. Set `HOP_HOME` (or pass path explicitly).
-2. Run:
+1. Run the sync script with the path to your Hop installation:
    ```bash
    ./scripts/dev-sync-hop-plugin.sh /path/to/hop
    ```
-3. Restart Hop GUI / server and test your pipeline.
+   With `HOP_HOME` set in the environment, omit the path argument.
+2. Restart Hop GUI / server and test your pipeline.
 
 What the script does:
-- builds the project
-- recreates plugin target directory in `${HOP_HOME}`
-- unzips latest plugin artifact directly into Hop
+- builds the plugin ZIP without running tests
+- replaces the installed Geometry Type plugin with the contents of the built ZIP
 
-This provides a short feedback loop when refining geometry-related plugin code.
+Use the full build and the verification commands in [AGENTS.md](AGENTS.md) for acceptance.
 
 ## Publishing to jars.interlis.guru
 GitHub Actions verifies PRs and pushes to `main`. The canonical build uses
@@ -234,5 +233,4 @@ The circular WKB codecs preserve XY/XYZ/XYM/XYZM using EWKB flags or SQL/MM type
 markers, `EMPTY` rules and full input-consumption checks. The legacy Select Values text path uses
 the same parser through `GeometryUtils`, but keeps its historical `EMPTY → NULL` normalisation.
 See [docs/implementation/geometry-converter-stage-b.md](docs/implementation/geometry-converter-stage-b.md)
-for the implementation record and [handover/stage-b/README.md](handover/stage-b/README.md) for the
-tested artifacts.
+for the implementation record.

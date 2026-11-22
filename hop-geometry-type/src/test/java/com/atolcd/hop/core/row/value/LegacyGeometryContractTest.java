@@ -30,12 +30,11 @@ class LegacyGeometryContractTest {
     Geometry z = new WKTReader().read("POINT Z (1 2 3)");
     Geometry srid = new WKTReader().read("POINT (1 2)");
     srid.setSRID(2056);
-    CurvePolygonHolder curve = curve();
 
     assertThat(meta.getString(xy)).isEqualTo("POINT (1 2)");
     assertThat(meta.getString(z)).isEqualTo("POINT Z(1 2 3)");
     assertThat(meta.getString(srid)).isEqualTo("SRID=2056;POINT (1 2)");
-    assertThat(meta.getString(curve.geometry))
+    assertThat(meta.getString(curve()))
         .isEqualTo("SRID=2056;CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4, 0 4, 0 0))");
   }
 
@@ -50,7 +49,7 @@ class LegacyGeometryContractTest {
     assertThat(hex(CurveGeometrySupport.writeWkb(srid)))
         .isEqualTo("00a0000001000008083ff000000000000040000000000000007ff8000000000000");
 
-    assertThat(hex(CurveGeometrySupport.writeWkb(curve().geometry)))
+    assertThat(hex(CurveGeometrySupport.writeWkb(curve())))
         .isEqualTo(
             "010a00002008080000010000000108000000050000000000000000000000000000000000000000000000000010400000000000000000000000000000104000000000000010400000000000000000000000000000104000000000000000000000000000000000");
   }
@@ -69,7 +68,7 @@ class LegacyGeometryContractTest {
         .isEqualTo(
             "000000002100a0000001000008083ff000000000000040000000000000007ff8000000000000");
 
-    assertThat(writeData(meta, curve().geometry))
+    assertThat(writeData(meta, curve()))
         .isEqualTo(
             "0000000066010a00002008080000010000000108000000050000000000000000000000000000000000000000000000000010400000000000000000000000000000104000000000000010400000000000000000000000000000104000000000000000000000000000000000");
   }
@@ -91,10 +90,10 @@ class LegacyGeometryContractTest {
     assertThat(annotation.classLoaderGroup()).isEqualTo("sogeo-geometry");
   }
 
-  private static CurvePolygonHolder curve() {
+  private static Geometry curve() {
     Geometry geometry = new CurveWkbReader().read(HexFormat.of().parseHex(CURVE_POLYGON_HEX));
     geometry.setSRID(2056);
-    return new CurvePolygonHolder(geometry);
+    return geometry;
   }
 
   private static String writeData(ValueMetaGeometry meta, Object value) throws Exception {
@@ -106,6 +105,4 @@ class LegacyGeometryContractTest {
   private static String hex(byte[] value) {
     return HexFormat.of().formatHex(value);
   }
-
-  private record CurvePolygonHolder(Geometry geometry) {}
 }

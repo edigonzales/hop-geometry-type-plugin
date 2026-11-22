@@ -32,30 +32,6 @@ class ValueMetaGeometryTest {
                   + "00000000000000000000000000000000");
 
   @Test
-  void shouldRenderEwktIncludingSrid() throws Exception {
-    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
-    Geometry geometry = WKT_READER.read("POINT(1 2)");
-    geometry.setSRID(2056);
-
-    String text = meta.getString(geometry);
-
-    assertThat(text).isEqualTo("SRID=2056;POINT (1 2)");
-  }
-
-  @Test
-  void shouldRenderCurvePolygonEwktWithoutLinearizing() throws Exception {
-    ValueMetaGeometry meta = new ValueMetaGeometry("geom");
-    CurvePolygon geometry = curvePolygon();
-    geometry.setSRID(2056);
-
-    String text = meta.getString(geometry);
-
-    assertThat(text)
-        .isEqualTo(
-            "SRID=2056;CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4, 0 4, 0 0))");
-  }
-
-  @Test
   void shouldConvertEwktToGeometry() throws Exception {
     ValueMetaGeometry meta = new ValueMetaGeometry("geom");
     Geometry geometry =
