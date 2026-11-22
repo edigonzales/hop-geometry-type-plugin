@@ -147,12 +147,12 @@ JVM options are needed.
 ## Fast local development / live testing
 For rapid iteration against a local Hop installation:
 
-1. Set `HOP_HOME` (or pass path explicitly).
-2. Run:
+1. Run the sync script with the path to your Hop installation:
    ```bash
    ./scripts/dev-sync-hop-plugin.sh /path/to/hop
    ```
-3. Restart Hop GUI / server and test your pipeline.
+   With `HOP_HOME` set in the environment, omit the path argument.
+2. Restart Hop GUI / server and test your pipeline.
 
 What the script does:
 - builds the plugin ZIP without running tests
