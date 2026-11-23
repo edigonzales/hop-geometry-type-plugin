@@ -5,7 +5,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 
 /** Circular arc represented exactly by start, supporting (mid), and end point. */
-public final class ArcSegment implements CurveSegment {
+public final class ArcSegment {
   private static final long SEGMENT_CAP = 1_000_000L;
 
   private final Coordinate start;
@@ -18,7 +18,6 @@ public final class ArcSegment implements CurveSegment {
     this.end = end.copy();
   }
 
-  @Override
   public Coordinate getStartPoint() {
     return start.copy();
   }
@@ -27,12 +26,10 @@ public final class ArcSegment implements CurveSegment {
     return mid.copy();
   }
 
-  @Override
   public Coordinate getEndPoint() {
     return end.copy();
   }
 
-  @Override
   public Coordinate[] linearize(double maxError) {
     requirePositiveError(maxError);
     // Identical reverse arcs use exactly the same floating point operations.
