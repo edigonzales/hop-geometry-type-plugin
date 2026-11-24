@@ -5,7 +5,6 @@ Standalone Apache Hop plugin that contributes a **Geometry value type** (`ValueM
 ## Scope
 This repository extracts and packages the geometry type implementation from `atolcd/hop-gis-plugins` with the **same Java package names** in code:
 
-- `com.atolcd.hop.core.row.value.GeometryInterface`
 - `com.atolcd.hop.core.row.value.ValueMetaGeometry`
 - supporting utility: `com.atolcd.hop.gis.utils.GeometryUtils`
 

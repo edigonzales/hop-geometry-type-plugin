@@ -72,7 +72,7 @@ import org.locationtech.jts.io.WKTWriter;
     name = "Geometry",
     description = "A geometry GIS object",
     classLoaderGroup = "sogeo-geometry")
-public class ValueMetaGeometry extends ValueMetaBase implements GeometryInterface {
+public class ValueMetaGeometry extends ValueMetaBase {
 
   public static final int TYPE_GEOMETRY = 43663879; // Value is "GEOMETRY" on
 
